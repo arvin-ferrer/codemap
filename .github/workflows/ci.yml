@@ -24,7 +24,7 @@ jobs:
           node-version: 22
           cache: "pnpm"
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run build --filter @codemap/shared
+      - run: pnpm --filter @codemap/shared run build
       - run: pnpm lint
   build:
     name: Build
