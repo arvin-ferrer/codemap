@@ -7,7 +7,6 @@ import * as path from 'path';
 
 describe('ParserController', () => {
   let controller: ParserController;
-  let fileScanner: FileScannerService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -17,20 +16,33 @@ describe('ParserController', () => {
         {
           provide: FileScannerService,
           useValue: {
-            scan: jest.fn().mockReturnValue([{ id: 'src/main.ts', name: 'main.ts', type: 'ts', size: 100, lines: 10 }]),
+            scan: jest.fn().mockReturnValue([
+              {
+                id: 'src/main.ts',
+                name: 'main.ts',
+                type: 'ts',
+                size: 100,
+                lines: 10,
+              },
+            ]),
           },
         },
         {
           provide: ImportParserService,
           useValue: {
-            parse: jest.fn().mockReturnValue([{ source: 'src/main.ts', target: 'src/app.module.ts', relation: 'static-import' }]),
+            parse: jest.fn().mockReturnValue([
+              {
+                source: 'src/main.ts',
+                target: 'src/app.module.ts',
+                relation: 'static-import',
+              },
+            ]),
           },
         },
       ],
     }).compile();
 
     controller = module.get<ParserController>(ParserController);
-    fileScanner = module.get<FileScannerService>(FileScannerService);
   });
 
   it('should be defined', () => {
@@ -47,7 +59,7 @@ describe('ParserController', () => {
       expect(response.nodes).toBeDefined();
       expect(response.nodes.length).toBe(1);
       expect(response.nodes[0].name).toBe('main.ts');
-      
+
       expect(response.links).toBeDefined();
       expect(response.links.length).toBe(1);
       expect(response.links[0].relation).toBe('static-import');

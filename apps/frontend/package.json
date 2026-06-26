@@ -6,9 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "test": "echo \"No tests yet\" && exit 0",
-    "format:check": "next lint"
+    "format:check": "eslint ."
   },
   "dependencies": {
     "@codemap/shared": "workspace:*",

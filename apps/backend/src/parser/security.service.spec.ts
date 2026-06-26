@@ -21,7 +21,9 @@ describe('SecurityService', () => {
     allowedFile = path.join(allowedSubdir, 'app.ts');
     fs.writeFileSync(allowedFile, 'console.log("hello");');
 
-    outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codemap-outside-root-'));
+    outsideDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'codemap-outside-root-'),
+    );
   });
 
   afterAll(() => {
@@ -66,7 +68,6 @@ describe('SecurityService', () => {
     });
 
     it('should throw ForbiddenException for basic relative directory traversal escape', () => {
-      const escapePath = path.join(testRoot, '..');
       // To run existence checks successfully, we point to an existing parent directory
       expect(() => {
         service.validatePath(allowedSubdir, testRoot); // allowedSubdir is root, testRoot lies outside it
@@ -83,7 +84,7 @@ describe('SecurityService', () => {
       const symlinkPath = path.join(allowedSubdir, 'outside-symlink');
       const outsideFile = path.join(outsideDir, 'secret.txt');
       fs.writeFileSync(outsideFile, 'secret content');
-      
+
       // Create symlink: allowedSubdir/outside-symlink -> outsideDir/secret.txt
       fs.symlinkSync(outsideFile, symlinkPath);
 

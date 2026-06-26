@@ -15,14 +15,16 @@ export class ImportParserService {
 
   /**
    * Parses the import statements in each code node and resolves connections (links).
-   * 
+   *
    * @param workspaceRoot Real absolute path to the workspace root
    * @param nodes Scanned file nodes in the workspace
    * @returns List of CodeLink relationships
    */
   parse(workspaceRoot: string, nodes: CodeNode[]): CodeLink[] {
     const links: CodeLink[] = [];
-    const nodeMap = new Map<string, CodeNode>(nodes.map(node => [node.id, node]));
+    const nodeMap = new Map<string, CodeNode>(
+      nodes.map((node) => [node.id, node]),
+    );
 
     for (const node of nodes) {
       const fullPath = path.resolve(workspaceRoot, node.id);
@@ -31,14 +33,22 @@ export class ImportParserService {
       const content = fs.readFileSync(fullPath, 'utf8');
 
       // 1. Static imports
-      const staticImports = this.extractPattern(content, /import\s+.*\s+from\s+['"]([^'"]+)['"]/g)
-        .concat(this.extractPattern(content, /import\s+['"]([^'"]+)['"]/g));
+      const staticImports = this.extractPattern(
+        content,
+        /import\s+.*\s+from\s+['"]([^'"]+)['"]/g,
+      ).concat(this.extractPattern(content, /import\s+['"]([^'"]+)['"]/g));
 
       for (const imp of staticImports) {
         if (imp.startsWith('.') || imp.startsWith('/')) {
-          const resolvedPath = this.resolveImportPath(workspaceRoot, path.dirname(fullPath), imp);
+          const resolvedPath = this.resolveImportPath(
+            workspaceRoot,
+            path.dirname(fullPath),
+            imp,
+          );
           if (resolvedPath) {
-            const relativeTarget = path.relative(workspaceRoot, resolvedPath).replace(/\\/g, '/');
+            const relativeTarget = path
+              .relative(workspaceRoot, resolvedPath)
+              .replace(/\\/g, '/');
             if (nodeMap.has(relativeTarget)) {
               links.push({
                 source: node.id,
@@ -51,12 +61,21 @@ export class ImportParserService {
       }
 
       // 2. Dynamic requires
-      const dynamicRequires = this.extractPattern(content, /require\(['"]([^'"]+)['"]\)/g);
+      const dynamicRequires = this.extractPattern(
+        content,
+        /require\(['"]([^'"]+)['"]\)/g,
+      );
       for (const imp of dynamicRequires) {
         if (imp.startsWith('.') || imp.startsWith('/')) {
-          const resolvedPath = this.resolveImportPath(workspaceRoot, path.dirname(fullPath), imp);
+          const resolvedPath = this.resolveImportPath(
+            workspaceRoot,
+            path.dirname(fullPath),
+            imp,
+          );
           if (resolvedPath) {
-            const relativeTarget = path.relative(workspaceRoot, resolvedPath).replace(/\\/g, '/');
+            const relativeTarget = path
+              .relative(workspaceRoot, resolvedPath)
+              .replace(/\\/g, '/');
             if (nodeMap.has(relativeTarget)) {
               links.push({
                 source: node.id,
@@ -92,7 +111,11 @@ export class ImportParserService {
    * Resolves a relative import path to a real physical file.
    * Handles extensionless imports and directory index files (e.g. `./utils` -> `./utils/index.ts`).
    */
-  private resolveImportPath(workspaceRoot: string, currentDir: string, importPath: string): string | null {
+  private resolveImportPath(
+    workspaceRoot: string,
+    currentDir: string,
+    importPath: string,
+  ): string | null {
     const resolvedBase = path.resolve(currentDir, importPath);
 
     // 1. Direct file check
@@ -109,7 +132,10 @@ export class ImportParserService {
     }
 
     // 3. Directory index resolution (e.g. './components/Button' -> './components/Button/index.tsx')
-    if (fs.existsSync(resolvedBase) && fs.statSync(resolvedBase).isDirectory()) {
+    if (
+      fs.existsSync(resolvedBase) &&
+      fs.statSync(resolvedBase).isDirectory()
+    ) {
       for (const ext of this.extensions) {
         const indexFile = path.join(resolvedBase, 'index' + ext);
         if (fs.existsSync(indexFile) && fs.statSync(indexFile).isFile()) {

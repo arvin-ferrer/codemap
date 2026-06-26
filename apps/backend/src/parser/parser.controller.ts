@@ -20,13 +20,18 @@ export class ParserController {
   @Get('graph')
   getGraph(@Query('path') scanPath?: string): GraphDataResponse {
     // Default to the main codemap project root directory
-    const defaultRoot = path.resolve(process.cwd(), '../../'); 
+    const defaultRoot = path.resolve(process.cwd(), '../../');
     const targetPath = scanPath ? path.resolve(scanPath) : defaultRoot;
 
     try {
       // 1. Enforce security sandboxing (ensure target path resides within target root boundary)
-      const workspaceRoot = path.resolve(process.env.WORKSPACE_ROOT ?? defaultRoot);
-      const realTarget = this.securityService.validatePath(workspaceRoot, targetPath);
+      const workspaceRoot = path.resolve(
+        process.env.WORKSPACE_ROOT ?? defaultRoot,
+      );
+      const realTarget = this.securityService.validatePath(
+        workspaceRoot,
+        targetPath,
+      );
 
       // 2. Scan for file nodes
       const nodes = this.fileScannerService.scan(workspaceRoot, realTarget);
@@ -39,7 +44,9 @@ export class ParserController {
       if (error instanceof Error) {
         throw new BadRequestException(error.message);
       }
-      throw new BadRequestException('An unknown error occurred while scanning the codebase.');
+      throw new BadRequestException(
+        'An unknown error occurred while scanning the codebase.',
+      );
     }
   }
 }

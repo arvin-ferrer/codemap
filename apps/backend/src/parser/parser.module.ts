@@ -6,6 +6,6 @@ import { ParserController } from './parser.controller';
 
 @Module({
   controllers: [ParserController],
-  providers: [SecurityService, FileScannerService, ImportParserService]
+  providers: [SecurityService, FileScannerService, ImportParserService],
 })
 export class ParserModule {}

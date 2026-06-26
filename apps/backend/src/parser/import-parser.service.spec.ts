@@ -25,23 +25,50 @@ describe('ImportParserService', () => {
       import * as express from 'express';
       const logger = require('./utils/logger');
       import './components/Button';
-      `
+      `,
     );
 
-    fs.writeFileSync(path.join(testRoot, 'src', 'helper.ts'), 'export const helper = 1;');
+    fs.writeFileSync(
+      path.join(testRoot, 'src', 'helper.ts'),
+      'export const helper = 1;',
+    );
     fs.mkdirSync(path.join(testRoot, 'src', 'utils'));
-    fs.writeFileSync(path.join(testRoot, 'src', 'utils', 'logger.js'), 'module.exports = {};');
-    
+    fs.writeFileSync(
+      path.join(testRoot, 'src', 'utils', 'logger.js'),
+      'module.exports = {};',
+    );
+
     // Setup component folder with index.tsx
     fs.mkdirSync(path.join(testRoot, 'src', 'components', 'Button'));
-    fs.writeFileSync(path.join(testRoot, 'src', 'components', 'Button', 'index.tsx'), 'export const Button = () => {};');
+    fs.writeFileSync(
+      path.join(testRoot, 'src', 'components', 'Button', 'index.tsx'),
+      'export const Button = () => {};',
+    );
 
     // Create CodeNode models corresponding to these files
     mockNodes = [
       { id: 'src/index.ts', name: 'index.ts', type: 'ts', size: 100, lines: 6 },
-      { id: 'src/helper.ts', name: 'helper.ts', type: 'ts', size: 20, lines: 1 },
-      { id: 'src/utils/logger.js', name: 'logger.js', type: 'js', size: 25, lines: 1 },
-      { id: 'src/components/Button/index.tsx', name: 'index.tsx', type: 'tsx', size: 30, lines: 1 }
+      {
+        id: 'src/helper.ts',
+        name: 'helper.ts',
+        type: 'ts',
+        size: 20,
+        lines: 1,
+      },
+      {
+        id: 'src/utils/logger.js',
+        name: 'logger.js',
+        type: 'js',
+        size: 25,
+        lines: 1,
+      },
+      {
+        id: 'src/components/Button/index.tsx',
+        name: 'index.tsx',
+        type: 'tsx',
+        size: 30,
+        lines: 1,
+      },
     ];
   });
 
@@ -75,15 +102,24 @@ describe('ImportParserService', () => {
 
       expect(links.length).toBe(3);
 
-      const linkHelper = links.find(l => l.source === 'src/index.ts' && l.target === 'src/helper.ts');
+      const linkHelper = links.find(
+        (l) => l.source === 'src/index.ts' && l.target === 'src/helper.ts',
+      );
       expect(linkHelper).toBeDefined();
       expect(linkHelper?.relation).toBe('static-import');
 
-      const linkLogger = links.find(l => l.source === 'src/index.ts' && l.target === 'src/utils/logger.js');
+      const linkLogger = links.find(
+        (l) =>
+          l.source === 'src/index.ts' && l.target === 'src/utils/logger.js',
+      );
       expect(linkLogger).toBeDefined();
       expect(linkLogger?.relation).toBe('dynamic-require');
 
-      const linkButton = links.find(l => l.source === 'src/index.ts' && l.target === 'src/components/Button/index.tsx');
+      const linkButton = links.find(
+        (l) =>
+          l.source === 'src/index.ts' &&
+          l.target === 'src/components/Button/index.tsx',
+      );
       expect(linkButton).toBeDefined();
       expect(linkButton?.relation).toBe('static-import');
     });

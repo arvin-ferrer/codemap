@@ -1,4 +1,8 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -7,7 +11,7 @@ export class SecurityService {
   /**
    * Validates that a target path is strictly contained within the workspace root directory.
    * Resolves symlinks to prevent path traversal bypasses.
-   * 
+   *
    * @param workspaceRoot The absolute path to the workspace root
    * @param targetPath The absolute or relative target path to validate
    * @returns The resolved real absolute path of the target
@@ -23,7 +27,9 @@ export class SecurityService {
       throw new NotFoundException(`Target path does not exist: ${targetPath}`);
     }
     if (!fs.existsSync(resolvedRoot)) {
-      throw new NotFoundException(`Workspace root path does not exist: ${workspaceRoot}`);
+      throw new NotFoundException(
+        `Workspace root path does not exist: ${workspaceRoot}`,
+      );
     }
 
     // 2. Resolve true physical paths (dereferences symlinks)
@@ -38,7 +44,7 @@ export class SecurityService {
 
     if (isOutside) {
       throw new ForbiddenException(
-        `Security violation: Target path '${targetPath}' resolves to '${realTarget}', which is outside the workspace root '${realRoot}'.`
+        `Security violation: Target path '${targetPath}' resolves to '${realTarget}', which is outside the workspace root '${realRoot}'.`,
       );
     }
 

@@ -17,17 +17,27 @@ export class FileScannerService {
   ];
 
   private readonly extensionWhitelist = [
-    '.js', '.ts', '.tsx', '.jsx',
-    '.py', '.go', '.rs', '.java',
-    '.cpp', '.c', '.h', '.html',
-    '.css', '.json'
+    '.js',
+    '.ts',
+    '.tsx',
+    '.jsx',
+    '.py',
+    '.go',
+    '.rs',
+    '.java',
+    '.cpp',
+    '.c',
+    '.h',
+    '.html',
+    '.css',
+    '.json',
   ];
 
   private readonly maxFileSizeBytes = 1 * 1024 * 1024; // 1 MB limit
 
   /**
    * Scans a workspace directory and builds a list of CodeNode objects.
-   * 
+   *
    * @param workspaceRoot The real absolute path to the workspace root
    * @param scanDir The directory to scan (defaults to workspaceRoot)
    * @param nodes Accumulated file nodes
@@ -37,7 +47,7 @@ export class FileScannerService {
     workspaceRoot: string,
     scanDir: string = workspaceRoot,
     nodes: CodeNode[] = [],
-    gitignoreRules: string[] = []
+    gitignoreRules: string[] = [],
   ): CodeNode[] {
     const files = fs.readdirSync(scanDir);
 
@@ -68,7 +78,10 @@ export class FileScannerService {
         const ext = path.extname(file).toLowerCase();
 
         // 3. Enforce extension whitelist and file size limits
-        if (this.extensionWhitelist.includes(ext) && stat.size <= this.maxFileSizeBytes) {
+        if (
+          this.extensionWhitelist.includes(ext) &&
+          stat.size <= this.maxFileSizeBytes
+        ) {
           const linesCount = this.countLines(fullPath);
 
           nodes.push({
@@ -97,8 +110,8 @@ export class FileScannerService {
     const content = fs.readFileSync(gitignorePath, 'utf8');
     return content
       .split(/\r?\n/)
-      .map(line => line.trim())
-      .filter(line => line && !line.startsWith('#')); // ignore empty lines and comments
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith('#')); // ignore empty lines and comments
   }
 
   /**
@@ -106,14 +119,17 @@ export class FileScannerService {
    */
   private isIgnored(relativePath: string, rules: string[]): boolean {
     const normalizedPath = relativePath.replace(/\\/g, '/'); // normalize windows paths
-    
+
     for (const rule of rules) {
       // Simple exact match or prefix check for folders
       const cleanRule = rule.endsWith('/') ? rule.slice(0, -1) : rule;
-      
+
       // If the rule is a folder ignore, match if relative path starts with it
       if (rule.endsWith('/')) {
-        if (normalizedPath === cleanRule || normalizedPath.startsWith(cleanRule + '/')) {
+        if (
+          normalizedPath === cleanRule ||
+          normalizedPath.startsWith(cleanRule + '/')
+        ) {
           return true;
         }
       } else {
