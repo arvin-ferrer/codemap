@@ -1,0 +1,38 @@
+# Node dependencies
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# IDE configurations
+.vscode/
+.idea/
+.DS_Store
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# Local environments
+.env
+.env.local
+.env.*.local
+
+# Temp and diagnostic files
+.temp
+.tmp
+/.nyc_output
+pids
+*.pid
+*.seed
+*.pid.lock
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json

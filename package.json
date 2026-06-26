@@ -1,0 +1,16 @@
+{
+  "name": "codemap",
+  "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "pnpm@10.20.0",
+  "scripts": {
+    "lint": "pnpm -r run lint",
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+    "test:cov": "pnpm -r run test:cov",
+    "format:check":"pnpm -r run format:check"
+
+  }
+}
