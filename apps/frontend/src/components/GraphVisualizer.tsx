@@ -150,7 +150,7 @@ export default function GraphVisualizer() {
   const [error, setError] = useState<string | null>(null);
 
   /* ---- requestAnimationFrame render loop ---- */
-  const renderLoop = useCallback(() => {
+  const renderLoop = useCallback(function renderLoop() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -205,7 +205,7 @@ export default function GraphVisualizer() {
         if (!res.ok) throw new Error(`API responded with ${res.status}`);
         return res.json();
       })
-      .then((data: { nodes: any[]; links: any[] }) => {
+      .then((data: { nodes: TickNode[]; links: TickLink[] }) => {
         worker.postMessage({ type: "INIT", nodes: data.nodes, links: data.links });
         setIsLoading(false);
       })
@@ -284,7 +284,7 @@ export default function GraphVisualizer() {
         newScale = Math.max(newScale / zoomFactor, 0.1);
       }
 
-      scaleRef.current = newScale;1
+      scaleRef.current = newScale;
 
       // 3. Adjust offsets so the world coordinate point stays directly under the mouse cursor
       offsetXRef.current = mouseX - worldX * newScale;
