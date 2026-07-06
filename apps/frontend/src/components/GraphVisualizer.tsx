@@ -3,12 +3,13 @@
 import React, { useEffect, useRef, useCallback, useState } from "react";
 import styles from "./GraphVisualizer.module.css";
 import {quadtree, Quadtree} from 'd3-quadtree';
+import SidePanel from "./SidePanel";
 
 /* ------------------------------------------------------------------ */
 /*  Types for data coming back from the simulation worker              */
 /* ------------------------------------------------------------------ */
 
-interface TickNode {
+export interface TickNode {
   id: string;
   name: string;
   type: string;
@@ -17,7 +18,7 @@ interface TickNode {
   y: number;
 }
 
-interface TickLink {
+export interface TickLink {
   sourceId: string;
   targetId: string;
   sourceX: number;
@@ -162,6 +163,7 @@ export default function GraphVisualizer() {
   const quadtreeRef = useRef<Quadtree<TickNode> | null>(null);
   const hoveredNodeIdRef = useRef<string | null>(null);
   const draggedNodeIdRef = useRef<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   // Store latest tick data in a ref so the rAF loop can read it without re-renders
   const tickDataRef = useRef<{ nodes: TickNode[]; links: TickLink[] }>({
@@ -350,6 +352,7 @@ export default function GraphVisualizer() {
 
     if (clickedNode) {
       draggedNodeIdRef.current = clickedNode.id;
+      setSelectedNodeId(clickedNode.id);
       workerRef.current?.postMessage({
         type: "DRAG_START",
         nodeId: clickedNode.id,
@@ -357,6 +360,7 @@ export default function GraphVisualizer() {
         y,
       });
     } else {
+      setSelectedNodeId(null);
       isPanningRef.current = true;
       lastMouseRef.current = { x: e.clientX, y: e.clientY };
     }
@@ -407,6 +411,12 @@ export default function GraphVisualizer() {
     <div className={styles.container} ref={containerRef}>
       {isLoading && <div className={styles.overlay}>Loading graph…</div>}
       {error && <div className={styles.overlay}>Error: {error}</div>}
+      <SidePanel 
+        nodeId={selectedNodeId} 
+        nodes={tickDataRef.current.nodes} 
+        links={tickDataRef.current.links} 
+        onClose={() => setSelectedNodeId(null)} 
+      />
       <canvas
         ref={canvasRef}
         className={styles.canvas}
