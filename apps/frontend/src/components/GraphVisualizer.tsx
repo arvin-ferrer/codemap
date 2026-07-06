@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useCallback, useState } from "react";
 import styles from "./GraphVisualizer.module.css";
 import {quadtree, Quadtree} from 'd3-quadtree';
+
 /* ------------------------------------------------------------------ */
 /*  Types for data coming back from the simulation worker              */
 /* ------------------------------------------------------------------ */
@@ -17,6 +18,8 @@ interface TickNode {
 }
 
 interface TickLink {
+  sourceId: string;
+  targetId: string;
   sourceX: number;
   sourceY: number;
   targetX: number;
@@ -74,37 +77,60 @@ function drawFrame(
   scale: number,
   offsetX: number,
   offsetY: number,
-  dpr: number
+  dpr: number,
+  activeNodeId: string | null
 ): void {
   ctx.setTransform(1, 0, 0, 1, 0, 0);       // reset to identity (physical pixels)
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);         // clear the FULL physical canvas
   ctx.setTransform(scale * dpr, 0, 0, scale * dpr, offsetX * dpr, offsetY * dpr);  // now apply camera + DPR scale
 
-  drawLinks(ctx, links);
-  drawNodes(ctx, nodes);
+  const connectedNodeIds = new Set<string>();
+  if (activeNodeId) {
+    connectedNodeIds.add(activeNodeId);
+    for (const link of links) {
+      if (link.sourceId === activeNodeId) connectedNodeIds.add(link.targetId);
+      if (link.targetId === activeNodeId) connectedNodeIds.add(link.sourceId);
+    }
+  }
+
+  drawLinks(ctx, links, activeNodeId);
+  drawNodes(ctx, nodes, activeNodeId, connectedNodeIds);
 }
 
-function drawLinks(ctx: CanvasRenderingContext2D, links: TickLink[]): void {
-  ctx.strokeStyle = "rgba(139, 148, 158, 0.2)";
-  ctx.lineWidth = 0.8;
-
-  ctx.beginPath();
+function drawLinks(ctx: CanvasRenderingContext2D, links: TickLink[], activeNodeId: string | null): void {
   for (const link of links) {
+    const isConnectedToActive = activeNodeId && (link.sourceId === activeNodeId || link.targetId === activeNodeId);
+    const opacity = activeNodeId ? (isConnectedToActive ? 0.8 : 0.05) : 0.2;
+    const lineWidth = activeNodeId ? (isConnectedToActive ? 2 : 0.8) : 0.8;
+    
+    ctx.strokeStyle = `rgba(139, 148, 158, ${opacity})`;
+    ctx.lineWidth = lineWidth;
+    
+    ctx.beginPath();
     ctx.moveTo(link.sourceX, link.sourceY);
     ctx.lineTo(link.targetX, link.targetY);
+    ctx.stroke();
   }
-  ctx.stroke();
 }
 
-function drawNodes(ctx: CanvasRenderingContext2D, nodes: TickNode[]): void {
+function drawNodes(ctx: CanvasRenderingContext2D, nodes: TickNode[], activeNodeId: string | null, connectedNodeIds: Set<string>): void {
   for (const node of nodes) {
     const radius = getNodeRadius(node.size);
     const color = getNodeColor(node.type);
+
+    const isConnected = activeNodeId ? connectedNodeIds.has(node.id) : true;
+    ctx.globalAlpha = isConnected ? 1.0 : 0.2;
 
     ctx.beginPath();
     ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
     ctx.fillStyle = color;
     ctx.fill();
+    
+    if (node.id === activeNodeId) {
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#ffffff";
+      ctx.stroke();
+    }
   }
 
   // Draw labels in a second pass so they render on top of all circles
@@ -115,8 +141,12 @@ function drawNodes(ctx: CanvasRenderingContext2D, nodes: TickNode[]): void {
 
   for (const node of nodes) {
     const radius = getNodeRadius(node.size);
+    const isConnected = activeNodeId ? connectedNodeIds.has(node.id) : true;
+    ctx.globalAlpha = isConnected ? 1.0 : 0.2;
     ctx.fillText(node.name, node.x, node.y + radius + 3);
   }
+  
+  ctx.globalAlpha = 1.0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -160,6 +190,7 @@ export default function GraphVisualizer() {
     const dpr = window.devicePixelRatio || 1;
     const { nodes, links } = tickDataRef.current;
     
+    const activeNodeId = draggedNodeIdRef.current || hoveredNodeIdRef.current;
     drawFrame(
       ctx,
       nodes,
@@ -169,7 +200,8 @@ export default function GraphVisualizer() {
       scaleRef.current,
       offsetXRef.current,
       offsetYRef.current,
-      dpr
+      dpr,
+      activeNodeId
     );
 
     animFrameRef.current = requestAnimationFrame(renderLoop);

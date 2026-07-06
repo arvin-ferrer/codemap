@@ -97,6 +97,8 @@ function broadcastTick(): void {
   }));
 
   const tickLinks = links.map((l) => ({
+    sourceId: (l.source as SimNode).id,
+    targetId: (l.target as SimNode).id,
     sourceX: (l.source as SimNode).x ?? 0,
     sourceY: (l.source as SimNode).y ?? 0,
     targetX: (l.target as SimNode).x ?? 0,
