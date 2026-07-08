@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useCallback, useState } from "react";
 import styles from "./GraphVisualizer.module.css";
 import {quadtree, Quadtree} from 'd3-quadtree';
 import SidePanel from "./SidePanel";
+import SearchBar from "./SearchBar";
 
 /* ------------------------------------------------------------------ */
 /*  Types for data coming back from the simulation worker              */
@@ -344,6 +345,26 @@ export default function GraphVisualizer() {
     };
   };
 
+  const panToNode = useCallback((nodeId: string) => {
+    const node = tickDataRef.current.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    
+    setSelectedNodeId(node.id);
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const targetScale = 2.0;
+    scaleRef.current = targetScale;
+    
+    const dpr = window.devicePixelRatio || 1;
+    const cw = canvas.width / dpr;
+    const ch = canvas.height / dpr;
+    
+    offsetXRef.current = (cw / 2) - (node.x * targetScale);
+    offsetYRef.current = (ch / 2) - (node.y * targetScale);
+  }, []);
+
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const { x, y } = screenToWorld(e.clientX, e.clientY);
     
@@ -416,6 +437,10 @@ export default function GraphVisualizer() {
         nodes={tickDataRef.current.nodes} 
         links={tickDataRef.current.links} 
         onClose={() => setSelectedNodeId(null)} 
+      />
+      <SearchBar 
+        nodes={tickDataRef.current.nodes} 
+        onSelectNode={panToNode} 
       />
       <canvas
         ref={canvasRef}
