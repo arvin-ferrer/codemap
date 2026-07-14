@@ -74,7 +74,7 @@ export class FileScannerService {
       try {
         stat = fs.lstatSync(fullPath);
         const realPath = fs.realpathSync(fullPath);
-        
+
         // verify containment to prevent escaping workspace
         if (!realPath.startsWith(workspaceRoot)) {
           continue;
