@@ -7,12 +7,12 @@ import { ParserController } from './parser.controller';
 @Module({
   controllers: [ParserController],
   providers: [
-    SecurityService, 
-    FileScannerService, 
+    SecurityService,
+    FileScannerService,
     {
       provide: 'ImportExtractor',
-      useClass: TypeScriptAstExtractorService
-    }
+      useClass: TypeScriptAstExtractorService,
+    },
   ],
 })
 export class ParserModule {}

@@ -1,4 +1,10 @@
-import { Controller, Get, Query, BadRequestException, Inject } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  BadRequestException,
+  Inject,
+} from '@nestjs/common';
 import { SecurityService } from './security.service';
 import { FileScannerService } from './file-scanner.service';
 import type { ImportExtractor } from './import-parser.service';
@@ -10,7 +16,8 @@ export class ParserController {
   constructor(
     private readonly securityService: SecurityService,
     private readonly fileScannerService: FileScannerService,
-    @Inject('ImportExtractor') private readonly importExtractor: ImportExtractor,
+    @Inject('ImportExtractor')
+    private readonly importExtractor: ImportExtractor,
   ) {}
 
   /**

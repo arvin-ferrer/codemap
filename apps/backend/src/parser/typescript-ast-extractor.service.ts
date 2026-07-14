@@ -24,12 +24,12 @@ export class TypeScriptAstExtractorService implements ImportExtractor {
       if (!fs.existsSync(fullPath)) continue;
 
       const content = fs.readFileSync(fullPath, 'utf8');
-      
+
       const sourceFile = ts.createSourceFile(
         node.name,
         content,
         ts.ScriptTarget.Latest,
-        true
+        true,
       );
 
       const imports = this.extractImports(sourceFile);
@@ -80,9 +80,13 @@ export class TypeScriptAstExtractorService implements ImportExtractor {
       else if (ts.isCallExpression(node)) {
         if (
           node.expression.kind === ts.SyntaxKind.ImportKeyword ||
-          (ts.isIdentifier(node.expression) && node.expression.text === 'require')
+          (ts.isIdentifier(node.expression) &&
+            node.expression.text === 'require')
         ) {
-          if (node.arguments.length > 0 && ts.isStringLiteral(node.arguments[0])) {
+          if (
+            node.arguments.length > 0 &&
+            ts.isStringLiteral(node.arguments[0])
+          ) {
             imports.push(node.arguments[0].text);
           }
         }

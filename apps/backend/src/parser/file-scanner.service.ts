@@ -117,7 +117,14 @@ export class FileScannerService {
 
       if (stat.isDirectory()) {
         if (depth < ctx.maxDepth) {
-          this.scan(workspaceRoot, fullPath, nodes, gitignoreRules, depth + 1, ctx);
+          this.scan(
+            workspaceRoot,
+            fullPath,
+            nodes,
+            gitignoreRules,
+            depth + 1,
+            ctx,
+          );
         }
       } else {
         const ext = path.extname(file).toLowerCase();

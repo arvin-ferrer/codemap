@@ -82,7 +82,9 @@ describe('RegexImportExtractorService', () => {
       providers: [RegexImportExtractorService],
     }).compile();
 
-    service = module.get<RegexImportExtractorService>(RegexImportExtractorService);
+    service = module.get<RegexImportExtractorService>(
+      RegexImportExtractorService,
+    );
   });
 
   it('should be defined', () => {
