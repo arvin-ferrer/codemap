@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { CodeNode } from '@codemap/shared';
+import ignore from 'ignore';
+import * as path from 'path';
+import * as fs from 'fs/promises';
+import { existsSync, readFileSync } from 'fs';
 
 export interface ScannerContext {
   fileCount: number;
@@ -9,9 +13,8 @@ export interface ScannerContext {
   maxBytes: number;
   maxDepth: number;
   maxTimeMs: number;
+  ig: ReturnType<typeof ignore>;
 }
-import * as path from 'path';
-import * as fs from 'fs';
 
 @Injectable()
 export class FileScannerService {
@@ -46,22 +49,22 @@ export class FileScannerService {
   private readonly maxFileSizeBytes = 1 * 1024 * 1024; // 1 MB limit
 
   /**
-   * Scans a workspace directory and builds a list of CodeNode objects.
-   *
-   * @param workspaceRoot The real absolute path to the workspace root
-   * @param scanDir The directory to scan (defaults to workspaceRoot)
-   * @param nodes Accumulated file nodes
-   * @returns List of parsed CodeNode objects
+   * Scans a workspace directory and builds a list of CodeNode objects asynchronously.
    */
-  scan(
+  async scan(
     workspaceRoot: string,
     scanDir: string = workspaceRoot,
     nodes: CodeNode[] = [],
-    gitignoreRules: string[] = [],
     depth: number = 0,
     ctx?: ScannerContext,
-  ): CodeNode[] {
+  ): Promise<CodeNode[]> {
     if (!ctx) {
+      const ig = ignore().add(this.defaultIgnores);
+      const gitignorePath = path.join(workspaceRoot, '.gitignore');
+      if (existsSync(gitignorePath)) {
+        ig.add(readFileSync(gitignorePath, 'utf8'));
+      }
+
       ctx = {
         fileCount: 0,
         totalBytes: 0,
@@ -70,14 +73,15 @@ export class FileScannerService {
         maxBytes: 500 * 1024 * 1024, // 500MB
         maxDepth: 30,
         maxTimeMs: 60000, // 60s
+        ig,
       };
     }
 
-    const files = fs.readdirSync(scanDir);
-
-    // If scanning the root, load gitignore rules
-    if (scanDir === workspaceRoot) {
-      gitignoreRules = this.loadGitignore(workspaceRoot);
+    let files: string[] = [];
+    try {
+      files = await fs.readdir(scanDir);
+    } catch {
+      return nodes;
     }
 
     for (const file of files) {
@@ -86,30 +90,26 @@ export class FileScannerService {
       if (ctx.totalBytes >= ctx.maxBytes) break;
 
       const fullPath = path.join(scanDir, file);
-      const relativePath = path.relative(workspaceRoot, fullPath);
+      let relativePath = path.relative(workspaceRoot, fullPath);
+      // standardize for ignore
+      relativePath = relativePath.replace(/\\/g, '/');
 
-      // 1. Enforce default ignores
-      if (this.defaultIgnores.includes(file)) {
+      // 1. Enforce gitignore / default rules
+      if (ctx.ig.ignores(relativePath)) {
         continue;
       }
 
-      // 2. Enforce gitignore rules
-      if (this.isIgnored(relativePath, gitignoreRules)) {
-        continue;
-      }
-
-      let stat: fs.Stats;
+      let stat;
       try {
-        stat = fs.lstatSync(fullPath);
-        const realPath = fs.realpathSync(fullPath);
+        stat = await fs.lstat(fullPath);
+        const realPath = await fs.realpath(fullPath);
 
-        // verify containment to prevent escaping workspace
         if (!realPath.startsWith(workspaceRoot)) {
           continue;
         }
 
         if (stat.isSymbolicLink()) {
-          stat = fs.statSync(realPath);
+          stat = await fs.stat(realPath);
         }
       } catch {
         continue;
@@ -117,31 +117,27 @@ export class FileScannerService {
 
       if (stat.isDirectory()) {
         if (depth < ctx.maxDepth) {
-          this.scan(
-            workspaceRoot,
-            fullPath,
-            nodes,
-            gitignoreRules,
-            depth + 1,
-            ctx,
-          );
+          if (ctx.ig.ignores(relativePath + '/')) {
+            continue;
+          }
+
+          await this.scan(workspaceRoot, fullPath, nodes, depth + 1, ctx);
         }
       } else {
         const ext = path.extname(file).toLowerCase();
 
-        // 3. Enforce extension whitelist and file size limits
         if (
           this.extensionWhitelist.includes(ext) &&
           stat.size <= this.maxFileSizeBytes
         ) {
           ctx.fileCount++;
           ctx.totalBytes += stat.size;
-          const linesCount = this.countLines(fullPath);
+          const linesCount = await this.countLines(fullPath);
 
           nodes.push({
             id: relativePath,
             name: file,
-            type: ext.substring(1), // strip the leading dot
+            type: ext.substring(1),
             size: stat.size,
             lines: linesCount,
           });
@@ -152,60 +148,9 @@ export class FileScannerService {
     return nodes;
   }
 
-  /**
-   * Loads gitignore rules and cleans them up.
-   */
-  private loadGitignore(workspaceRoot: string): string[] {
-    const gitignorePath = path.join(workspaceRoot, '.gitignore');
-    if (!fs.existsSync(gitignorePath)) {
-      return [];
-    }
-
-    const content = fs.readFileSync(gitignorePath, 'utf8');
-    return content
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line && !line.startsWith('#')); // ignore empty lines and comments
-  }
-
-  /**
-   * Basic matching algorithm to check if a relative path matches gitignore.
-   */
-  private isIgnored(relativePath: string, rules: string[]): boolean {
-    const normalizedPath = relativePath.replace(/\\/g, '/'); // normalize windows paths
-
-    for (const rule of rules) {
-      // Simple exact match or prefix check for folders
-      const cleanRule = rule.endsWith('/') ? rule.slice(0, -1) : rule;
-
-      // If the rule is a folder ignore, match if relative path starts with it
-      if (rule.endsWith('/')) {
-        if (
-          normalizedPath === cleanRule ||
-          normalizedPath.startsWith(cleanRule + '/')
-        ) {
-          return true;
-        }
-      } else {
-        // Filename or path contains rule
-        if (
-          normalizedPath === rule ||
-          normalizedPath.endsWith('/' + rule) ||
-          normalizedPath.startsWith(rule + '/')
-        ) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  /**
-   * Reads a file and counts the total lines of code.
-   */
-  private countLines(filePath: string): number {
+  private async countLines(filePath: string): Promise<number> {
     try {
-      const content = fs.readFileSync(filePath, 'utf8');
+      const content = await fs.readFile(filePath, 'utf8');
       return content.split(/\r?\n/).length;
     } catch {
       return 0;

@@ -15,7 +15,7 @@ describe('ParserController', () => {
         {
           provide: FileScannerService,
           useValue: {
-            scan: jest.fn().mockReturnValue([
+            scan: jest.fn().mockResolvedValue([
               {
                 id: 'src/main.ts',
                 name: 'main.ts',
@@ -49,10 +49,10 @@ describe('ParserController', () => {
   });
 
   describe('getGraph', () => {
-    it('should scan, parse, and return graph data response structure', () => {
-      // Create a path that actually exists so realpathSync doesn't throw
+    it('should scan, parse, and return graph data response structure', async () => {
+      // Create a path that actually exists so realpath doesn't throw
       const testPath = path.resolve(process.cwd());
-      const response = controller.getGraph(testPath);
+      const response = await controller.getGraph(testPath);
 
       expect(response).toBeDefined();
       expect(response.nodes).toBeDefined();

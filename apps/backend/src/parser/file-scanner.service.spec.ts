@@ -75,8 +75,8 @@ src/cache.json
   });
 
   describe('scan', () => {
-    it('should recursively scan whitelisted files and gather correct metadata', () => {
-      const nodes = service.scan(testRoot);
+    it('should recursively scan whitelisted files and gather correct metadata', async () => {
+      const nodes = await service.scan(testRoot);
 
       // Expected files to find:
       // - src/index.ts (TypeScript, small, whitelisted)

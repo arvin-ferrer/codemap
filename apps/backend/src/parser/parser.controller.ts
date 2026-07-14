@@ -25,7 +25,7 @@ export class ParserController {
    * GET /api/graph?path=/absolute/path/to/scan
    */
   @Get('graph')
-  getGraph(@Query('path') scanPath?: string): GraphDataResponse {
+  async getGraph(@Query('path') scanPath?: string): Promise<GraphDataResponse> {
     // Default to the main codemap project root directory
     const defaultRoot = path.resolve(process.cwd(), '../../');
     const targetPath = scanPath ? path.resolve(scanPath) : defaultRoot;
@@ -41,7 +41,10 @@ export class ParserController {
       );
 
       // 2. Scan for file nodes
-      const nodes = this.fileScannerService.scan(workspaceRoot, realTarget);
+      const nodes = await this.fileScannerService.scan(
+        workspaceRoot,
+        realTarget,
+      );
 
       // 3. Parse dependency import edges
       const links = this.importExtractor.parse(workspaceRoot, nodes);
