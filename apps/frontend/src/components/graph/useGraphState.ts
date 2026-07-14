@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { quadtree, Quadtree } from "d3-quadtree";
-import { CodeNode, CodeLink, WorkerMessageInbound, WorkerMessageOutbound } from "@codemap/shared";
+import {
+  CodeNode,
+  CodeLink,
+  WorkerMessageInbound,
+  WorkerMessageOutbound,
+} from "@codemap/shared";
 import { TickNode, TickLink } from "./canvasRenderer";
 
 export function useGraphState() {
   const workerRef = useRef<Worker | null>(null);
-  
+
   const baseNodesRef = useRef<CodeNode[]>([]);
   const baseLinksRef = useRef<CodeLink[]>([]);
 
@@ -13,7 +18,7 @@ export function useGraphState() {
     nodes: [],
     links: [],
   });
-  
+
   const quadtreeRef = useRef<Quadtree<TickNode> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +38,7 @@ export function useGraphState() {
         const positions = msg.positions;
         const currentNodes = baseNodesRef.current;
         const currentLinks = baseLinksRef.current;
-        
+
         const nextNodes: TickNode[] = new Array(currentNodes.length);
         for (let i = 0; i < currentNodes.length; i++) {
           nextNodes[i] = {
@@ -43,8 +48,8 @@ export function useGraphState() {
           };
         }
 
-        const nodesById = new Map(nextNodes.map(n => [n.id, n]));
-        const nextLinks: TickLink[] = currentLinks.map(l => {
+        const nodesById = new Map(nextNodes.map((n) => [n.id, n]));
+        const nextLinks: TickLink[] = currentLinks.map((l) => {
           const source = nodesById.get(l.source);
           const target = nodesById.get(l.target);
           return {
@@ -57,7 +62,7 @@ export function useGraphState() {
         });
 
         tickDataRef.current = { nodes: nextNodes, links: nextLinks };
-        
+
         quadtreeRef.current = quadtree<TickNode>()
           .x((d) => d.x)
           .y((d) => d.y)
@@ -73,10 +78,16 @@ export function useGraphState() {
       .then((data: { nodes: CodeNode[]; links: CodeLink[] }) => {
         baseNodesRef.current = data.nodes;
         baseLinksRef.current = data.links;
-        worker.postMessage({ type: "INIT", nodes: data.nodes, links: data.links } as WorkerMessageInbound);
+        worker.postMessage({
+          type: "INIT",
+          nodes: data.nodes,
+          links: data.links,
+        } as WorkerMessageInbound);
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Failed to fetch graph data");
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch graph data",
+        );
         setIsLoading(false);
       });
 

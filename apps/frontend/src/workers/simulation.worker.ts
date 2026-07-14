@@ -15,7 +15,11 @@ import {
   type SimulationNodeDatum,
   type SimulationLinkDatum,
 } from "d3-force";
-import type { WorkerMessageInbound, WorkerMessageOutbound, CodeNode } from "@codemap/shared";
+import type {
+  WorkerMessageInbound,
+  WorkerMessageOutbound,
+  CodeNode,
+} from "@codemap/shared";
 
 interface SimNode extends CodeNode, SimulationNodeDatum {
   x?: number;
@@ -78,15 +82,19 @@ function broadcastTick(): void {
     positions[i * 2 + 1] = nodes[i].y ?? 0;
   }
 
-  const isComplete = simulation ? simulation.alpha() < simulation.alphaMin() : true;
+  const isComplete = simulation
+    ? simulation.alpha() < simulation.alphaMin()
+    : true;
   const out: WorkerMessageOutbound = {
     type: "TICK",
     positions,
     isComplete,
   };
-  
+
   // Bypass Window typings safely
-  const workerSelf = self as unknown as { postMessage: (msg: unknown, transfer: ArrayBuffer[]) => void };
+  const workerSelf = self as unknown as {
+    postMessage: (msg: unknown, transfer: ArrayBuffer[]) => void;
+  };
   workerSelf.postMessage(out, [positions.buffer]);
 }
 
@@ -131,8 +139,8 @@ self.onmessage = (event: MessageEvent<WorkerMessageInbound>) => {
 
   switch (msg.type) {
     case "INIT":
-      nodes = msg.nodes.map(n => ({ ...n }));
-      links = msg.links.map(l => ({ ...l }));
+      nodes = msg.nodes.map((n) => ({ ...n }));
+      links = msg.links.map((l) => ({ ...l }));
 
       if (simulation) {
         simulation.stop();

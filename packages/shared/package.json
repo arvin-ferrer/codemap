@@ -5,9 +5,12 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "format": "prettier --write \"src/**/*.ts\" \"*.{json,md}\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"*.{json,md}\""
   },
   "devDependencies": {
+    "prettier": "^3.8.4",
     "typescript": "^5.3.3"
   }
 }

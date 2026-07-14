@@ -26,45 +26,51 @@ export function useCameraController({
   const hoveredNodeIdRef = useRef<string | null>(null);
   const draggedNodeIdRef = useRef<string | null>(null);
 
-  const screenToWorld = useCallback((screenX: number, screenY: number) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = screenX - rect.left;
-    const mouseY = screenY - rect.top;
-    
-    return {
-      x: (mouseX - offsetXRef.current) / scaleRef.current,
-      y: (mouseY - offsetYRef.current) / scaleRef.current
-    };
-  }, [canvasRef]);
+  const screenToWorld = useCallback(
+    (screenX: number, screenY: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return { x: 0, y: 0 };
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = screenX - rect.left;
+      const mouseY = screenY - rect.top;
 
-  const panToNode = useCallback((nodeId: string) => {
-    const node = tickDataRef.current.nodes.find(n => n.id === nodeId);
-    if (!node) return;
-    
-    setSelectedNodeId(node.id);
-    
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const targetScale = 2.0;
-    scaleRef.current = targetScale;
-    
-    const dpr = window.devicePixelRatio || 1;
-    const cw = canvas.width / dpr;
-    const ch = canvas.height / dpr;
-    
-    offsetXRef.current = (cw / 2) - (node.x * targetScale);
-    offsetYRef.current = (ch / 2) - (node.y * targetScale);
-  }, [canvasRef, tickDataRef, setSelectedNodeId]);
+      return {
+        x: (mouseX - offsetXRef.current) / scaleRef.current,
+        y: (mouseY - offsetYRef.current) / scaleRef.current,
+      };
+    },
+    [canvasRef],
+  );
+
+  const panToNode = useCallback(
+    (nodeId: string) => {
+      const node = tickDataRef.current.nodes.find((n) => n.id === nodeId);
+      if (!node) return;
+
+      setSelectedNodeId(node.id);
+
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const targetScale = 2.0;
+      scaleRef.current = targetScale;
+
+      const dpr = window.devicePixelRatio || 1;
+      const cw = canvas.width / dpr;
+      const ch = canvas.height / dpr;
+
+      offsetXRef.current = cw / 2 - node.x * targetScale;
+      offsetYRef.current = ch / 2 - node.y * targetScale;
+    },
+    [canvasRef, tickDataRef, setSelectedNodeId],
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const handleWheel = (e: WheelEvent) => {
-      e.preventDefault(); 
+      e.preventDefault();
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
@@ -96,7 +102,7 @@ export function useCameraController({
     }
 
     const { x, y } = screenToWorld(e.clientX, e.clientY);
-    const SEARCH_RADIUS = 15 / scaleRef.current; 
+    const SEARCH_RADIUS = 15 / scaleRef.current;
     const clickedNode = quadtreeRef.current?.find(x, y, SEARCH_RADIUS);
 
     if (clickedNode) {
@@ -131,9 +137,13 @@ export function useCameraController({
     const SEARCH_RADIUS = 15 / scaleRef.current;
     const hoveredNode = quadtreeRef.current?.find(x, y, SEARCH_RADIUS);
     hoveredNodeIdRef.current = hoveredNode ? hoveredNode.id : null;
-    
+
     if (canvasRef.current) {
-      canvasRef.current.style.cursor = hoveredNode ? "pointer" : (isPanningRef.current ? "grabbing" : "default");
+      canvasRef.current.style.cursor = hoveredNode
+        ? "pointer"
+        : isPanningRef.current
+          ? "grabbing"
+          : "default";
     }
 
     if (isPanningRef.current) {

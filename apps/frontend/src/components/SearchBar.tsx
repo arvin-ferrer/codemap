@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import styles from './SearchBar.module.css';
-import { TickNode } from './graph/canvasRenderer';
+import React, { useState, useEffect, useRef } from "react";
+import styles from "./SearchBar.module.css";
+import { TickNode } from "./graph/canvasRenderer";
 
 interface SearchBarProps {
   nodes: TickNode[];
@@ -8,23 +8,28 @@ interface SearchBarProps {
 }
 
 export default function SearchBar({ nodes, onSelectNode }: SearchBarProps) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const results = query
-    ? nodes.filter(n => n.name.toLowerCase().includes(query.toLowerCase())).slice(0, 10)
+    ? nodes
+        .filter((n) => n.name.toLowerCase().includes(query.toLowerCase()))
+        .slice(0, 10)
     : [];
 
   return (
@@ -42,12 +47,12 @@ export default function SearchBar({ nodes, onSelectNode }: SearchBarProps) {
       />
       {isOpen && results.length > 0 && (
         <ul className={styles.dropdown}>
-          {results.map(n => (
+          {results.map((n) => (
             <li
               key={n.id}
               className={styles.resultItem}
               onClick={() => {
-                setQuery('');
+                setQuery("");
                 setIsOpen(false);
                 onSelectNode(n.id);
               }}
