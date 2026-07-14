@@ -1,5 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { CodeNode } from '@codemap/shared';
+
+export interface ScannerContext {
+  fileCount: number;
+  totalBytes: number;
+  startTime: number;
+  maxFiles: number;
+  maxBytes: number;
+  maxDepth: number;
+  maxTimeMs: number;
+}
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -48,7 +58,21 @@ export class FileScannerService {
     scanDir: string = workspaceRoot,
     nodes: CodeNode[] = [],
     gitignoreRules: string[] = [],
+    depth: number = 0,
+    ctx?: ScannerContext,
   ): CodeNode[] {
+    if (!ctx) {
+      ctx = {
+        fileCount: 0,
+        totalBytes: 0,
+        startTime: Date.now(),
+        maxFiles: 50000,
+        maxBytes: 500 * 1024 * 1024, // 500MB
+        maxDepth: 30,
+        maxTimeMs: 60000, // 60s
+      };
+    }
+
     const files = fs.readdirSync(scanDir);
 
     // If scanning the root, load gitignore rules
@@ -57,6 +81,10 @@ export class FileScannerService {
     }
 
     for (const file of files) {
+      if (Date.now() - ctx.startTime > ctx.maxTimeMs) break;
+      if (ctx.fileCount >= ctx.maxFiles) break;
+      if (ctx.totalBytes >= ctx.maxBytes) break;
+
       const fullPath = path.join(scanDir, file);
       const relativePath = path.relative(workspaceRoot, fullPath);
 
@@ -88,7 +116,9 @@ export class FileScannerService {
       }
 
       if (stat.isDirectory()) {
-        this.scan(workspaceRoot, fullPath, nodes, gitignoreRules);
+        if (depth < ctx.maxDepth) {
+          this.scan(workspaceRoot, fullPath, nodes, gitignoreRules, depth + 1, ctx);
+        }
       } else {
         const ext = path.extname(file).toLowerCase();
 
@@ -97,6 +127,8 @@ export class FileScannerService {
           this.extensionWhitelist.includes(ext) &&
           stat.size <= this.maxFileSizeBytes
         ) {
+          ctx.fileCount++;
+          ctx.totalBytes += stat.size;
           const linesCount = this.countLines(fullPath);
 
           nodes.push({

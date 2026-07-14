@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ParserController } from './parser.controller';
 import { SecurityService } from './security.service';
 import { FileScannerService } from './file-scanner.service';
-import { ImportParserService } from './import-parser.service';
 import * as path from 'path';
 
 describe('ParserController', () => {
@@ -28,7 +27,7 @@ describe('ParserController', () => {
           },
         },
         {
-          provide: ImportParserService,
+          provide: 'ImportExtractor',
           useValue: {
             parse: jest.fn().mockReturnValue([
               {

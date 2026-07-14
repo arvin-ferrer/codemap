@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ImportParserService } from './import-parser.service';
+import { RegexImportExtractorService } from './import-parser.service';
 import { CodeNode } from '@codemap/shared';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 
-describe('ImportParserService', () => {
-  let service: ImportParserService;
+describe('RegexImportExtractorService', () => {
+  let service: RegexImportExtractorService;
   let testRoot: string;
   let mockNodes: CodeNode[];
 
@@ -79,10 +79,10 @@ describe('ImportParserService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [ImportParserService],
+      providers: [RegexImportExtractorService],
     }).compile();
 
-    service = module.get<ImportParserService>(ImportParserService);
+    service = module.get<RegexImportExtractorService>(RegexImportExtractorService);
   });
 
   it('should be defined', () => {

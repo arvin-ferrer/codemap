@@ -3,8 +3,12 @@ import { CodeNode, CodeLink } from '@codemap/shared';
 import * as path from 'path';
 import * as fs from 'fs';
 
+export interface ImportExtractor {
+  parse(workspaceRoot: string, nodes: CodeNode[]): CodeLink[];
+}
+
 @Injectable()
-export class ImportParserService {
+export class RegexImportExtractorService implements ImportExtractor {
   private readonly importPatterns = [
     /require\(['"]([^'"]+)['"]\)/g,
     /import\s+.*\s+from\s+['"]([^'"]+)['"]/g,

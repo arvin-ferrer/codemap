@@ -22,14 +22,16 @@ CodeMap targets developers, architects, and technical educators. Key features in
 
 ## 2. Architecture Overview
 
-CodeMap is built as a client-server web application. The frontend uses Next.js and React, employing HTML5 Canvas for graphing. The backend utilizes Next.js API Routes for workspace parsing and Gemini coordination.
+CodeMap is built as a local-first client-server application. The frontend uses Next.js and React, employing HTML5 Canvas for graphing. The backend utilizes a NestJS daemon (or CLI agent) for workspace parsing and Gemini coordination.
+
+For a hosted product, direct local-path scanning is disabled. Instead, it relies on an explicit repository upload, Git checkout, or an installed local agent. Remote requests are never permitted to supply a host filesystem path.
 
 ### 2.1 Component Block Diagram
 
 ```mermaid
 graph TD
-    subgraph Client [Client Frontend - Next.js / React]
-        UI[Workspace Control & Chat Panel]
+    subgraph Client [Browser UI]
+        UI[Workspace Control & Graph/query API]
         Canvas[HTML5 Canvas Renderer]
         Worker[Web Worker - D3-Force Physics Engine]
         QuadTree[D3 Quadtree Spatial Index]
@@ -42,7 +44,7 @@ graph TD
     end
 
     subgraph SecurityBoundary [Security Sandbox Boundary]
-        subgraph Server [Server Backend - Next.js API Routes]
+        subgraph Server [Local CodeMap Agent - NestJS or CLI daemon]
             API_Parse[Parse API Endpoint /api/parse]
             API_Query[Query RAG Endpoint /api/query]
             DirWalker[Directory Traverser]
@@ -173,9 +175,16 @@ async function validatePathSecurity(targetPath: string, rootPath: string): Promi
 
 ### 4.2 File Validation Policies (ACT-07)
 *   **File Extension Whitelist**: Only parse code and text files: `.js`, `.jsx`, `.ts`, `.tsx`, `.py`, `.go`, `.rs`, `.json`, `.md`, `.css`.
-*   **File Size Limit**: Reject processing any file larger than **1 MB** to prevent server exhaustion and parsing timeouts.
+*   **Indexing Limits**: Implement explicit constraints during discovery to prevent unbounded resource consumption:
+    *   **Max File Size**: Reject processing any file larger than **1 MB**.
+    *   **Max Total Bytes**: Cap the workspace aggregate scan size (e.g., 500 MB).
+    *   **Max File Count**: Cap the total files parsed (e.g., 50,000 files).
+    *   **Max Traversal Depth**: Stop recursive scanning past a configured depth limit (e.g., 30 directories deep).
+    *   **Max Time Allocation**: Terminate scanning if directory traversal exceeds a timeout threshold (e.g., 60 seconds).
 
-### 4.3 Resolution Rules
+### 4.3 Resolution Rules & Import Extraction
+*   **Interface-Driven Extractor**: All file parsing logic sits behind an `ImportExtractor` interface. This allows safe migration from prototype regex scanners to explicit AST analyzers.
+*   **AST-Based Parsing**: Code should be parsed using Abstract Syntax Trees (e.g., TypeScript Compiler API) instead of regex. This prevents misreading comments/strings and robustly captures dynamic imports, named exports, and multi-language import structures (Python, Rust, Go).
 *   **Relative Paths**: Map `import { x } from './utils'` relative to the source node's path.
 *   **Alias Resolution**: Parse the workspaces' config files (e.g. `tsconfig.json` or `package.json` exports) to resolve custom alias mappings (e.g. `@/components/*`).
 *   **Cascading Lookup**: Try resolving in sequence: `.ts` -> `.tsx` -> `.js` -> `.jsx` -> `/index.ts` -> `/index.js`.

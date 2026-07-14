@@ -1,7 +1,7 @@
-import { Controller, Get, Query, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Query, BadRequestException, Inject } from '@nestjs/common';
 import { SecurityService } from './security.service';
 import { FileScannerService } from './file-scanner.service';
-import { ImportParserService } from './import-parser.service';
+import type { ImportExtractor } from './import-parser.service';
 import type { GraphDataResponse } from '@codemap/shared';
 import * as path from 'path';
 
@@ -10,7 +10,7 @@ export class ParserController {
   constructor(
     private readonly securityService: SecurityService,
     private readonly fileScannerService: FileScannerService,
-    private readonly importParserService: ImportParserService,
+    @Inject('ImportExtractor') private readonly importExtractor: ImportExtractor,
   ) {}
 
   /**
@@ -37,7 +37,7 @@ export class ParserController {
       const nodes = this.fileScannerService.scan(workspaceRoot, realTarget);
 
       // 3. Parse dependency import edges
-      const links = this.importParserService.parse(workspaceRoot, nodes);
+      const links = this.importExtractor.parse(workspaceRoot, nodes);
 
       return { nodes, links };
     } catch (error) {
