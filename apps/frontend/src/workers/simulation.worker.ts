@@ -3,9 +3,6 @@
  *
  * Runs all physics calculations off the main thread.
  * Communicates with the main thread via a typed postMessage protocol.
- *
- * Inbound messages:  INIT, UPDATE_DIMENSIONS, DRAG_START, DRAG, DRAG_END
- * Outbound messages: TICK (node/link positions each frame)
  */
 
 import {
@@ -18,15 +15,9 @@ import {
   type SimulationNodeDatum,
   type SimulationLinkDatum,
 } from "d3-force";
+import type { WorkerMessageInbound, WorkerMessageOutbound, CodeNode } from "@codemap/shared";
 
-
-/** Extends the shared CodeNode with D3's mutable simulation fields. */
-interface SimNode extends SimulationNodeDatum {
-  id: string;
-  name: string;
-  type: string;
-  size: number;
-  lines: number;
+interface SimNode extends CodeNode, SimulationNodeDatum {
   x?: number;
   y?: number;
   vx?: number;
@@ -35,20 +26,11 @@ interface SimNode extends SimulationNodeDatum {
   fy?: number | null;
 }
 
-/** Link after D3 resolves source/target from string IDs to object refs. */
 interface SimLink extends SimulationLinkDatum<SimNode> {
   source: string | SimNode;
   target: string | SimNode;
   relation: string;
 }
-
-/** Messages the main thread can send to this worker. */
-type InboundMessage =
-  | { type: "INIT"; nodes: SimNode[]; links: SimLink[] }
-  | { type: "UPDATE_DIMENSIONS"; width: number; height: number }
-  | { type: "DRAG_START"; nodeId: string; x: number; y: number }
-  | { type: "DRAG"; nodeId: string; x: number; y: number }
-  | { type: "DRAG_END"; nodeId: string };
 
 let simulation: Simulation<SimNode, SimLink> | null = null;
 let nodes: SimNode[] = [];
@@ -62,7 +44,9 @@ const COLLISION_RADIUS = 15;
 const ALPHA_DECAY = 0.02;
 const VELOCITY_DECAY = 0.4;
 
-/** Creates and starts the D3 force simulation with all configured forces. */
+let lastBroadcast = 0;
+const BROADCAST_INTERVAL_MS = 16; // ~60fps capped rate
+
 function createSimulation(): Simulation<SimNode, SimLink> {
   const sim = forceSimulation<SimNode>(nodes)
     .alphaDecay(ALPHA_DECAY)
@@ -81,37 +65,30 @@ function createSimulation(): Simulation<SimNode, SimLink> {
   return sim;
 }
 
-
-/**
- * Sends a lightweight snapshot of positions back to the main thread.
- * Only serialises the fields the canvas renderer actually needs.
- */
 function broadcastTick(): void {
-  const tickNodes = nodes.map((n) => ({
-    id: n.id,
-    name: n.name,
-    type: n.type,
-    size: n.size,
-    x: n.x ?? 0,
-    y: n.y ?? 0,
-  }));
+  const now = performance.now();
+  if (now - lastBroadcast < BROADCAST_INTERVAL_MS) {
+    return;
+  }
+  lastBroadcast = now;
 
-  const tickLinks = links.map((l) => ({
-    sourceId: (l.source as SimNode).id,
-    targetId: (l.target as SimNode).id,
-    sourceX: (l.source as SimNode).x ?? 0,
-    sourceY: (l.source as SimNode).y ?? 0,
-    targetX: (l.target as SimNode).x ?? 0,
-    targetY: (l.target as SimNode).y ?? 0,
-    relation: l.relation,
-  }));
+  const positions = new Float32Array(nodes.length * 2);
+  for (let i = 0; i < nodes.length; i++) {
+    positions[i * 2] = nodes[i].x ?? 0;
+    positions[i * 2 + 1] = nodes[i].y ?? 0;
+  }
 
-  self.postMessage({ type: "TICK", nodes: tickNodes, links: tickLinks });
+  const isComplete = simulation ? simulation.alpha() < simulation.alphaMin() : true;
+  const out: WorkerMessageOutbound = {
+    type: "TICK",
+    positions,
+    isComplete,
+  };
+  
+  // Bypass Window typings safely
+  const workerSelf = self as unknown as { postMessage: (msg: unknown, transfer: ArrayBuffer[]) => void };
+  workerSelf.postMessage(out, [positions.buffer]);
 }
-
-/* ------------------------------------------------------------------ */
-/*  Drag Helpers                                                       */
-/* ------------------------------------------------------------------ */
 
 const DRAG_ALPHA_TARGET = 0.3;
 
@@ -149,22 +126,19 @@ function handleDragEnd(nodeId: string): void {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Message Handler                                                    */
-/* ------------------------------------------------------------------ */
-
-self.onmessage = (event: MessageEvent<InboundMessage>) => {
+self.onmessage = (event: MessageEvent<WorkerMessageInbound>) => {
   const msg = event.data;
 
   switch (msg.type) {
     case "INIT":
-      nodes = msg.nodes;
-      links = msg.links;
+      nodes = msg.nodes.map(n => ({ ...n }));
+      links = msg.links.map(l => ({ ...l }));
 
       if (simulation) {
         simulation.stop();
       }
       simulation = createSimulation();
+      self.postMessage({ type: "INIT_DONE" } as WorkerMessageOutbound);
       break;
 
     case "UPDATE_DIMENSIONS":

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styles from './SearchBar.module.css';
-import { TickNode } from './GraphVisualizer';
+import { TickNode } from './graph/canvasRenderer';
 
 interface SearchBarProps {
   nodes: TickNode[];

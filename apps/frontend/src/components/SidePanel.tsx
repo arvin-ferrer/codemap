@@ -1,6 +1,6 @@
 import React from 'react';
 import styles from './SidePanel.module.css';
-import { TickNode, TickLink } from './GraphVisualizer';
+import { TickNode, TickLink } from './graph/canvasRenderer';
 
 interface SidePanelProps {
   nodeId: string | null;
@@ -15,12 +15,12 @@ export default function SidePanel({ nodeId, nodes, links, onClose }: SidePanelPr
   const node = nodes.find(n => n.id === nodeId);
   if (!node) return null;
 
-  const outgoing = links.filter(l => l.sourceId === nodeId).map(l => {
-    return nodes.find(n => n.id === l.targetId);
+  const outgoing = links.filter(l => l.source === nodeId).map(l => {
+    return nodes.find(n => n.id === l.target);
   }).filter(Boolean) as TickNode[];
 
-  const incoming = links.filter(l => l.targetId === nodeId).map(l => {
-    return nodes.find(n => n.id === l.sourceId);
+  const incoming = links.filter(l => l.target === nodeId).map(l => {
+    return nodes.find(n => n.id === l.source);
   }).filter(Boolean) as TickNode[];
 
   return (
@@ -28,7 +28,9 @@ export default function SidePanel({ nodeId, nodes, links, onClose }: SidePanelPr
       <div className={styles.header}>
         <div className={styles.titleRow}>
           <h2 className={styles.title}>{node.name}</h2>
-          <button className={styles.closeBtn} onClick={onClose}>×</button>
+          <button className={styles.closeBtn} onClick={onClose} aria-label="Close inspector panel" title="Close inspector">
+            ×
+          </button>
         </div>
         <div className={styles.path}>{node.id}</div>
         <div className={styles.stats}>
