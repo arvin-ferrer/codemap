@@ -70,7 +70,22 @@ export class FileScannerService {
         continue;
       }
 
-      const stat = fs.statSync(fullPath);
+      let stat: fs.Stats;
+      try {
+        stat = fs.lstatSync(fullPath);
+        const realPath = fs.realpathSync(fullPath);
+        
+        // verify containment to prevent escaping workspace
+        if (!realPath.startsWith(workspaceRoot)) {
+          continue;
+        }
+
+        if (stat.isSymbolicLink()) {
+          stat = fs.statSync(realPath);
+        }
+      } catch {
+        continue;
+      }
 
       if (stat.isDirectory()) {
         this.scan(workspaceRoot, fullPath, nodes, gitignoreRules);
