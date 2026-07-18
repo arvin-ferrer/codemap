@@ -47,7 +47,7 @@ export class ParserController {
       );
 
       // 3. Parse dependency import edges
-      const links = this.importExtractor.parse(workspaceRoot, nodes);
+      const links = await this.importExtractor.parse(workspaceRoot, nodes);
 
       return { nodes, links };
     } catch (error) {

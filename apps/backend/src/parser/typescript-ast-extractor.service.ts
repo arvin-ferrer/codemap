@@ -3,13 +3,13 @@ import { CodeNode, CodeLink } from '@codemap/shared';
 import { ImportExtractor } from './import-parser.service';
 import * as ts from 'typescript';
 import * as path from 'path';
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 
 @Injectable()
 export class TypeScriptAstExtractorService implements ImportExtractor {
   private readonly extensions = ['.ts', '.tsx', '.js', '.jsx', '.json'];
 
-  parse(workspaceRoot: string, nodes: CodeNode[]): CodeLink[] {
+  async parse(workspaceRoot: string, nodes: CodeNode[]): Promise<CodeLink[]> {
     const links: CodeLink[] = [];
     const nodeMap = new Map<string, CodeNode>(
       nodes.map((node) => [node.id, node]),
@@ -21,9 +21,12 @@ export class TypeScriptAstExtractorService implements ImportExtractor {
       }
 
       const fullPath = path.resolve(workspaceRoot, node.id);
-      if (!fs.existsSync(fullPath)) continue;
-
-      const content = fs.readFileSync(fullPath, 'utf8');
+      let content;
+      try {
+        content = await fs.readFile(fullPath, 'utf8');
+      } catch {
+        continue;
+      }
 
       const sourceFile = ts.createSourceFile(
         node.name,
@@ -36,7 +39,7 @@ export class TypeScriptAstExtractorService implements ImportExtractor {
 
       for (const imp of imports) {
         if (imp.startsWith('.') || imp.startsWith('/')) {
-          const resolvedPath = this.resolveImportPath(
+          const resolvedPath = await this.resolveImportPath(
             workspaceRoot,
             path.dirname(fullPath),
             imp,
@@ -99,36 +102,52 @@ export class TypeScriptAstExtractorService implements ImportExtractor {
     return imports;
   }
 
-  private resolveImportPath(
+
+  private async resolveImportPath(
     workspaceRoot: string,
     currentDir: string,
     importPath: string,
-  ): string | null {
+  ): Promise<string | null> {
     const resolvedBase = path.resolve(currentDir, importPath);
 
-    if (fs.existsSync(resolvedBase) && fs.statSync(resolvedBase).isFile()) {
-      return fs.realpathSync(resolvedBase);
-    }
+    const directPath = await this.safeResolveFile(workspaceRoot, resolvedBase);
+    if (directPath) return directPath;
 
     for (const ext of this.extensions) {
-      const fileWithExt = resolvedBase + ext;
-      if (fs.existsSync(fileWithExt) && fs.statSync(fileWithExt).isFile()) {
-        return fs.realpathSync(fileWithExt);
-      }
+      const extPath = await this.safeResolveFile(workspaceRoot, resolvedBase + ext);
+      if (extPath) return extPath;
     }
 
-    if (
-      fs.existsSync(resolvedBase) &&
-      fs.statSync(resolvedBase).isDirectory()
-    ) {
-      for (const ext of this.extensions) {
-        const indexFile = path.join(resolvedBase, 'index' + ext);
-        if (fs.existsSync(indexFile) && fs.statSync(indexFile).isFile()) {
-          return fs.realpathSync(indexFile);
+    try {
+      const stat = await fs.stat(resolvedBase);
+      if (stat.isDirectory()) {
+        for (const ext of this.extensions) {
+          const indexPath = await this.safeResolveFile(workspaceRoot, path.join(resolvedBase, 'index' + ext));
+          if (indexPath) return indexPath;
         }
       }
-    }
+    } catch {}
 
     return null;
   }
+
+  private async safeResolveFile(workspaceRoot: string, candidate: string): Promise<string | null> {
+    try {
+      let stat = await fs.lstat(candidate);
+      const realPath = await fs.realpath(candidate);
+      
+      if (!realPath.startsWith(workspaceRoot)) {
+        return null;
+      }
+      
+      if (stat.isSymbolicLink()) {
+        stat = await fs.stat(realPath);
+      }
+      
+      return stat.isFile() ? realPath : null;
+    } catch {
+      return null;
+    }
+  }
+
 }

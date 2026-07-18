@@ -92,8 +92,8 @@ describe('RegexImportExtractorService', () => {
   });
 
   describe('parse', () => {
-    it('should parse and resolve imports into dependency links', () => {
-      const links = service.parse(testRoot, mockNodes);
+    it('should parse and resolve imports into dependency links', async () => {
+      const links = await service.parse(testRoot, mockNodes);
 
       // Expected links:
       // 1. src/index.ts ➔ src/helper.ts (static-import, extensionless)

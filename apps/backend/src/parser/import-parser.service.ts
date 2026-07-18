@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { CodeNode, CodeLink } from '@codemap/shared';
 import * as path from 'path';
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 
 export interface ImportExtractor {
-  parse(workspaceRoot: string, nodes: CodeNode[]): CodeLink[];
+  parse(workspaceRoot: string, nodes: CodeNode[]): Promise<CodeLink[]>;
 }
 
 @Injectable()
@@ -24,7 +24,7 @@ export class RegexImportExtractorService implements ImportExtractor {
    * @param nodes Scanned file nodes in the workspace
    * @returns List of CodeLink relationships
    */
-  parse(workspaceRoot: string, nodes: CodeNode[]): CodeLink[] {
+  async parse(workspaceRoot: string, nodes: CodeNode[]): Promise<CodeLink[]> {
     const links: CodeLink[] = [];
     const nodeMap = new Map<string, CodeNode>(
       nodes.map((node) => [node.id, node]),
@@ -32,9 +32,12 @@ export class RegexImportExtractorService implements ImportExtractor {
 
     for (const node of nodes) {
       const fullPath = path.resolve(workspaceRoot, node.id);
-      if (!fs.existsSync(fullPath)) continue;
-
-      const content = fs.readFileSync(fullPath, 'utf8');
+      let content;
+      try {
+        content = await fs.readFile(fullPath, 'utf8');
+      } catch {
+        continue;
+      }
 
       // 1. Static imports
       const staticImports = this.extractPattern(
@@ -44,7 +47,7 @@ export class RegexImportExtractorService implements ImportExtractor {
 
       for (const imp of staticImports) {
         if (imp.startsWith('.') || imp.startsWith('/')) {
-          const resolvedPath = this.resolveImportPath(
+          const resolvedPath = await this.resolveImportPath(
             workspaceRoot,
             path.dirname(fullPath),
             imp,
@@ -71,7 +74,7 @@ export class RegexImportExtractorService implements ImportExtractor {
       );
       for (const imp of dynamicRequires) {
         if (imp.startsWith('.') || imp.startsWith('/')) {
-          const resolvedPath = this.resolveImportPath(
+          const resolvedPath = await this.resolveImportPath(
             workspaceRoot,
             path.dirname(fullPath),
             imp,
@@ -111,43 +114,52 @@ export class RegexImportExtractorService implements ImportExtractor {
     return matches;
   }
 
-  /**
-   * Resolves a relative import path to a real physical file.
-   * Handles extensionless imports and directory index files (e.g. `./utils` -> `./utils/index.ts`).
-   */
-  private resolveImportPath(
+  
+  private async resolveImportPath(
     workspaceRoot: string,
     currentDir: string,
     importPath: string,
-  ): string | null {
+  ): Promise<string | null> {
     const resolvedBase = path.resolve(currentDir, importPath);
 
-    // 1. Direct file check
-    if (fs.existsSync(resolvedBase) && fs.statSync(resolvedBase).isFile()) {
-      return fs.realpathSync(resolvedBase);
-    }
+    const directPath = await this.safeResolveFile(workspaceRoot, resolvedBase);
+    if (directPath) return directPath;
 
-    // 2. Extension resolution (e.g. './utils' -> './utils.ts')
     for (const ext of this.extensions) {
-      const fileWithExt = resolvedBase + ext;
-      if (fs.existsSync(fileWithExt) && fs.statSync(fileWithExt).isFile()) {
-        return fs.realpathSync(fileWithExt);
-      }
+      const extPath = await this.safeResolveFile(workspaceRoot, resolvedBase + ext);
+      if (extPath) return extPath;
     }
 
-    // 3. Directory index resolution (e.g. './components/Button' -> './components/Button/index.tsx')
-    if (
-      fs.existsSync(resolvedBase) &&
-      fs.statSync(resolvedBase).isDirectory()
-    ) {
-      for (const ext of this.extensions) {
-        const indexFile = path.join(resolvedBase, 'index' + ext);
-        if (fs.existsSync(indexFile) && fs.statSync(indexFile).isFile()) {
-          return fs.realpathSync(indexFile);
+    try {
+      const stat = await fs.stat(resolvedBase);
+      if (stat.isDirectory()) {
+        for (const ext of this.extensions) {
+          const indexPath = await this.safeResolveFile(workspaceRoot, path.join(resolvedBase, 'index' + ext));
+          if (indexPath) return indexPath;
         }
       }
-    }
+    } catch {}
 
     return null;
   }
+
+  private async safeResolveFile(workspaceRoot: string, candidate: string): Promise<string | null> {
+    try {
+      let stat = await fs.lstat(candidate);
+      const realPath = await fs.realpath(candidate);
+      
+      if (!realPath.startsWith(workspaceRoot)) {
+        return null;
+      }
+      
+      if (stat.isSymbolicLink()) {
+        stat = await fs.stat(realPath);
+      }
+      
+      return stat.isFile() ? realPath : null;
+    } catch {
+      return null;
+    }
+  }
+
 }
