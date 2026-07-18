@@ -1,58 +1,61 @@
-import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import SearchBar from './SearchBar';
+import React from "react";
+import { render, screen, fireEvent } from "@testing-library/react";
+import SearchBar from "./SearchBar";
+import { TickNode } from "./graph/canvasRenderer";
 
-describe('SearchBar Component', () => {
-  const mockNodes = [
+describe("SearchBar Component", () => {
+  const mockNodes: TickNode[] = [
     {
-      id: 'src/index.ts',
-      name: 'index.ts',
+      id: "src/index.ts",
+      name: "index.ts",
       x: 0,
       y: 0,
       vx: 0,
       vy: 0,
-      type: 'file',
+      type: "file",
       size: 100,
-      language: 'ts',
+      language: "ts",
+      path: "src/index.ts",
     },
     {
-      id: 'src/components/Button.tsx',
-      name: 'Button.tsx',
+      id: "src/components/Button.tsx",
+      name: "Button.tsx",
       x: 0,
       y: 0,
       vx: 0,
       vy: 0,
-      type: 'file',
+      type: "file",
       size: 200,
-      language: 'tsx',
+      language: "tsx",
+      path: "src/components/Button.tsx",
     },
   ];
 
-  it('renders the search input', () => {
-    render(<SearchBar nodes={mockNodes as any} onSelectNode={jest.fn()} />);
-    expect(screen.getByPlaceholderText('Search files...')).toBeInTheDocument();
+  it("renders the search input", () => {
+    render(<SearchBar nodes={mockNodes} onSelectNode={jest.fn()} />);
+    expect(screen.getByPlaceholderText("Search files...")).toBeInTheDocument();
   });
 
-  it('filters results based on query', () => {
-    render(<SearchBar nodes={mockNodes as any} onSelectNode={jest.fn()} />);
-    const input = screen.getByPlaceholderText('Search files...');
-    
-    fireEvent.change(input, { target: { value: 'button' } });
-    
-    expect(screen.getByText('Button.tsx')).toBeInTheDocument();
-    expect(screen.queryByText('index.ts')).not.toBeInTheDocument();
+  it("filters results based on query", () => {
+    render(<SearchBar nodes={mockNodes} onSelectNode={jest.fn()} />);
+    const input = screen.getByPlaceholderText("Search files...");
+
+    fireEvent.change(input, { target: { value: "button" } });
+
+    expect(screen.getByText("Button.tsx")).toBeInTheDocument();
+    expect(screen.queryByText("index.ts")).not.toBeInTheDocument();
   });
 
-  it('calls onSelectNode when a result is clicked', () => {
+  it("calls onSelectNode when a result is clicked", () => {
     const handleSelect = jest.fn();
-    render(<SearchBar nodes={mockNodes as any} onSelectNode={handleSelect} />);
-    const input = screen.getByPlaceholderText('Search files...');
-    
-    fireEvent.change(input, { target: { value: 'index' } });
-    
-    const resultItem = screen.getByText('index.ts');
+    render(<SearchBar nodes={mockNodes} onSelectNode={handleSelect} />);
+    const input = screen.getByPlaceholderText("Search files...");
+
+    fireEvent.change(input, { target: { value: "index" } });
+
+    const resultItem = screen.getByText("index.ts");
     fireEvent.click(resultItem);
-    
-    expect(handleSelect).toHaveBeenCalledWith('src/index.ts');
+
+    expect(handleSelect).toHaveBeenCalledWith("src/index.ts");
   });
 });
