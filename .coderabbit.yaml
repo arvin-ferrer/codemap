@@ -1,0 +1,31 @@
+version: 2
+language: "en-US"
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  path_instructions:
+    - path: "apps/backend/**/*.ts"
+      instructions: |
+        - Never allow `eval()` or `Function()` on parsed codebase strings.
+        - Ensure AST extraction (TypeScript Compiler API) is used over regex parsing.
+        - Validate strict sandbox boundaries (`WORKSPACE_ROOT`); flag any potential for path traversal (A01).
+        - Ensure no remote fetching logic that could cause SSRF (A10) is introduced.
+    - path: "apps/frontend/**/*.tsx"
+      instructions: |
+        - Ensure XSS prevention: do not use React's `dangerouslySetInnerHTML` blindly without sanitization.
+        - Ensure component state correctly orchestrates the D3 web worker.
+    - path: "**/*.{ts,tsx}"
+      instructions: |
+        - Ensure `apps/frontend` and `apps/backend` do not directly import from each other. They must only bridge data shapes via `packages/shared`.
+        - Ensure no credentials or API keys (e.g. Gemini API keys) are hardcoded (A02). They must be loaded via `.env`.
+  custom_instructions: |
+    As a reviewer for CodeMap, you must strictly enforce the following rules derived from our AGENTS.md:
+    1. Validate OWASP Top 10 Security: Ensure no credentials are leaked, inputs are sanitized, and physical file path boundaries are respected (this is a local-first CLI tool).
+    2. Enforce Monorepo Boundaries: `apps/frontend` exclusively handles Next.js UI/Canvas. `apps/backend` exclusively handles NestJS AST parsing and local daemon coordination. `packages/shared` acts as the strict typing contract.
+    3. Ensure codebase tests (Jest) coverage expectations are met. Do not allow features without corresponding tests.
+chat:
+  auto_reply: true
