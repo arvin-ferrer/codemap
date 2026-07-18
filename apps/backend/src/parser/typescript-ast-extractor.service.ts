@@ -102,7 +102,6 @@ export class TypeScriptAstExtractorService implements ImportExtractor {
     return imports;
   }
 
-
   private async resolveImportPath(
     workspaceRoot: string,
     currentDir: string,
@@ -114,7 +113,10 @@ export class TypeScriptAstExtractorService implements ImportExtractor {
     if (directPath) return directPath;
 
     for (const ext of this.extensions) {
-      const extPath = await this.safeResolveFile(workspaceRoot, resolvedBase + ext);
+      const extPath = await this.safeResolveFile(
+        workspaceRoot,
+        resolvedBase + ext,
+      );
       if (extPath) return extPath;
     }
 
@@ -122,7 +124,10 @@ export class TypeScriptAstExtractorService implements ImportExtractor {
       const stat = await fs.stat(resolvedBase);
       if (stat.isDirectory()) {
         for (const ext of this.extensions) {
-          const indexPath = await this.safeResolveFile(workspaceRoot, path.join(resolvedBase, 'index' + ext));
+          const indexPath = await this.safeResolveFile(
+            workspaceRoot,
+            path.join(resolvedBase, 'index' + ext),
+          );
           if (indexPath) return indexPath;
         }
       }
@@ -131,23 +136,25 @@ export class TypeScriptAstExtractorService implements ImportExtractor {
     return null;
   }
 
-  private async safeResolveFile(workspaceRoot: string, candidate: string): Promise<string | null> {
+  private async safeResolveFile(
+    workspaceRoot: string,
+    candidate: string,
+  ): Promise<string | null> {
     try {
       let stat = await fs.lstat(candidate);
       const realPath = await fs.realpath(candidate);
-      
+
       if (!realPath.startsWith(workspaceRoot)) {
         return null;
       }
-      
+
       if (stat.isSymbolicLink()) {
         stat = await fs.stat(realPath);
       }
-      
+
       return stat.isFile() ? realPath : null;
     } catch {
       return null;
     }
   }
-
 }
