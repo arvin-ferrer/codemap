@@ -22,9 +22,9 @@ CodeMap targets developers, architects, and technical educators. Key features in
 
 ## 2. Architecture Overview
 
-CodeMap is built as a local-first client-server application. The frontend uses Next.js and React, employing HTML5 Canvas for graphing. The backend utilizes a NestJS daemon (or CLI agent) for workspace parsing and Gemini coordination.
+CodeMap is built as a local-first client-server application packaged and distributed via an NPM CLI package. The frontend uses Next.js and React (served as a static bundle), employing HTML5 Canvas for graphing. The backend utilizes a NestJS CLI daemon spawned dynamically in the user's repository for secure workspace parsing and Gemini coordination.
 
-For a hosted product, direct local-path scanning is disabled. Instead, it relies on an explicit repository upload, Git checkout, or an installed local agent. Remote requests are never permitted to supply a host filesystem path.
+Because CodeMap requires arbitrary local filesystem access, a hosted web service model is strictly unsupported to prevent severe security and privacy risks. The CLI locally bounds the `WORKSPACE_ROOT` to the directory from which it is executed.
 
 ### 2.1 Component Block Diagram
 
@@ -185,6 +185,7 @@ async function validatePathSecurity(targetPath: string, rootPath: string): Promi
 ### 4.3 Resolution Rules & Import Extraction
 *   **Interface-Driven Extractor**: All file parsing logic sits behind an `ImportExtractor` interface. This allows safe migration from prototype regex scanners to explicit AST analyzers.
 *   **AST-Based Parsing**: Code should be parsed using Abstract Syntax Trees (e.g., TypeScript Compiler API) instead of regex. This prevents misreading comments/strings and robustly captures dynamic imports, named exports, and multi-language import structures (Python, Rust, Go).
+*   **Asynchronous Safety Checks**: All import resolution logic must execute asynchronously, applying `lstat` and `realpath` containment checks to prevent symlink traversal outside the target repository boundaries.
 *   **Relative Paths**: Map `import { x } from './utils'` relative to the source node's path.
 *   **Alias Resolution**: Parse the workspaces' config files (e.g. `tsconfig.json` or `package.json` exports) to resolve custom alias mappings (e.g. `@/components/*`).
 *   **Cascading Lookup**: Try resolving in sequence: `.ts` -> `.tsx` -> `.js` -> `.jsx` -> `/index.ts` -> `/index.js`.
