@@ -1,4 +1,3 @@
-version: 2
 language: "en-US"
 reviews:
   profile: "chill"
@@ -12,7 +11,7 @@ reviews:
       instructions: |
         - Never allow `eval()` or `Function()` on parsed codebase strings.
         - Ensure AST extraction (TypeScript Compiler API) is used over regex parsing.
-        - Validate strict sandbox boundaries (`WORKSPACE_ROOT`); flag any potential for path traversal (A01).
+        - Validate strict sandbox boundaries against `WORKSPACE_ROOT`. Explicitly require asynchronous `fs/promises` (`lstat` and `realpath`) checks, including symlink resolution and containment validation. Flag any potential for path traversal (A01).
         - Ensure no remote fetching logic that could cause SSRF (A10) is introduced.
     - path: "apps/frontend/**/*.tsx"
       instructions: |
@@ -26,6 +25,6 @@ reviews:
     As a reviewer for CodeMap, you must strictly enforce the following rules derived from our AGENTS.md:
     1. Validate OWASP Top 10 Security: Ensure no credentials are leaked, inputs are sanitized, and physical file path boundaries are respected (this is a local-first CLI tool).
     2. Enforce Monorepo Boundaries: `apps/frontend` exclusively handles Next.js UI/Canvas. `apps/backend` exclusively handles NestJS AST parsing and local daemon coordination. `packages/shared` acts as the strict typing contract.
-    3. Ensure codebase tests (Jest) coverage expectations are met. Do not allow features without corresponding tests.
+    3. Ensure backend Jest coverage stays above 80%. Do not allow features without corresponding tests. Ensure a 1,000-node performance fixture is used for any parser, worker-protocol, and graph-layout changes.
 chat:
   auto_reply: true
