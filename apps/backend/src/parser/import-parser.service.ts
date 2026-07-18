@@ -143,7 +143,9 @@ export class RegexImportExtractorService implements ImportExtractor {
           if (indexPath) return indexPath;
         }
       }
-    } catch {}
+    } catch {
+      // directory does not exist or cannot be stat'd
+    }
 
     return null;
   }
