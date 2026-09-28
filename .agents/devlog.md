@@ -14,7 +14,14 @@ This document serves as the live state of the project. All AI agents and develop
   - Bootstrapped Jest, `@testing-library/react`, and DOM matchers in the `@codemap/frontend` workspace.
   - Implemented the first UI component tests for `SearchBar.tsx`.
 
-### 🚀 Upcoming Tasks (Next Session)
-1. **Frontend Implementation:** Begin implementing the D3 physics engine and 2D canvas visualizer using a Web Worker (to decouple coordinates from the React thread).
-2. **Performance Fixture:** Construct a 1,000-node graph test to measure worker frame time and message rates.
-3. **RAG Integration:** Begin building the BFS sub-graph context extraction and Gemini API bindings.
+### [2026-09-28] Architectural Audit, Security Evaluation & Roadmap Formulation
+
+- **Codebase Audit Completed:** Conducted a comprehensive multi-dimensional audit of CodeMap across security, AST extraction, frontend performance, and RAG readiness.
+- **Documentation:** Created `docs/audit.md` establishing the health scorecard, OWASP vulnerability analysis (SEC-01 path prefix matching, SEC-02 sync I/O, SEC-03 0.0.0.0 binding and CORS), AST parser gaps, and a prioritized 4-sprint roadmap.
+- **Milestone Re-alignment:** Validated completion of Milestones 1–3 (file traverser, TypeScript AST extractor, worker-decoupled canvas renderer) and structured roadmaps for Milestones 4 & 5.
+
+### 🚀 Upcoming Tasks (Sprint 1: Security & Parser Hardening)
+1. **Security Patch (SEC-01):** Replace naive `realPath.startsWith(workspaceRoot)` checks in `file-scanner.service.ts` and `typescript-ast-extractor.service.ts` with `path.relative` containment validation.
+2. **Async I/O Migration (SEC-02):** Convert `security.service.ts` from synchronous `fs` to `fs/promises`.
+3. **Localhost Binding (SEC-03):** Bind NestJS in `main.ts` strictly to `127.0.0.1` and restrict CORS to localhost.
+4. **Path Alias Resolution (AST-02):** Add `tsconfig.json` path mapping resolution to `TypeScriptAstExtractorService`.
