@@ -10,6 +10,9 @@ importers:
 
   apps/backend:
     dependencies:
+      '@codemap/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@codemap/shared':
         specifier: workspace:*
         version: link:../../packages/shared
