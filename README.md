@@ -1,96 +1,100 @@
 # CodeMap
 
-CodeMap is a local-first codebase explorer. It maps files and dependencies into
-an interactive canvas so developers can inspect structure, trace relationships,
-and eventually ask grounded architectural questions.
+CodeMap reviews the scope and dependency consequences of code changes in a local
+browser. Declare the files or folders a task was meant to change, then inspect
+scope exceptions, added and removed imports, new cyclic groups, and captured text
+diffs alongside an interactive dependency map.
 
-## Current UI
+The first release targets JavaScript/TypeScript repositories through an npm CLI.
+The implementation, clean-package installation, and Chromium browser tests pass
+on Linux. Native macOS/Windows results remain pending in the CI matrix; see the
+[release roadmap](docs/roadmap.md). No npm release has been published.
 
-The frontend currently provides a force-directed canvas with pan, zoom,
-selection, search, and an import inspector. A captured local preview belongs at
-`docs/images/graph-visualizer.png`; generate it after starting both apps using
-the commands below. This keeps documentation screenshots representative of the
-running build rather than a design mock-up.
+## Try the local build
+
+Requires Node.js 22+, Git, and pnpm 10.20.0.
+
+```bash
+corepack enable
+pnpm install --frozen-lockfile
+pnpm build
+node packages/cli/bin/codemap.cjs review --base main
+```
+
+Run from the Git repository root. To review a different repository, change to its
+root and invoke the CLI using the absolute path to `packages/cli/bin/codemap.cjs`.
+The base must exist locally and share a unique common ancestor with HEAD.
+
+The CLI opens an authenticated URL on `127.0.0.1`. Keep that session URL private;
+Ctrl+C stops the server. Use `--no-open` to open the printed URL yourself. Select
+scope in the browser or pass repeated options such as `--scope src/auth/`.
+Folder scopes end in `/`.
+
+Reviews compare the merge base with final working files, including branch
+commits, staged/unstaged edits, and non-ignored untracked files. Refresh captures
+new content and preserves scope. No source is uploaded, no code is executed, and
+no checkout, staging, or fetch is performed. AI credentials are not required.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  UI[Next.js frontend] -->|/api proxy| API[NestJS backend]
-  API --> Safe[Sandboxed scanner]
-  Safe --> Parser[Dependency parser]
-  Parser --> Graph[Shared graph contract]
-  Graph --> Worker[Web Worker force simulation]
-  Worker --> Canvas[Canvas visualizer]
+  CLI[CLI process] --> API[Loopback NestJS session]
+  API -->|static assets| UI[Next.js browser UI]
+  UI -->|authenticated API| API
+  API --> Analysis[Analysis worker]
+  Analysis --> Core[Snapshot and AST core]
+  Core --> Git[Read-only Git and bounded files]
+  UI --> Physics[D3 Web Worker]
+  Physics --> Canvas[Ref cache and canvas]
 ```
 
-- `apps/frontend`: Next.js application and canvas-based graph viewer.
-- `apps/backend`: NestJS API that safely scans an allowed workspace and creates
-  dependency graph data.
-- `packages/shared`: TypeScript contracts shared by the backend and frontend.
-- `docs`: product requirements, SRS, and architecture decision records.
+- `packages/core`: Git snapshots, bounded file reads, AST resolution and graph comparison.
+- `apps/backend`: authenticated review, refresh and captured-diff APIs; worker lifecycle.
+- `apps/frontend`: static review UI, scope selection, canvas and physics worker.
+- `packages/shared`: graph, worker and review contracts.
+- `packages/cli`: command-line entry point and assembled runtime/static assets.
 
-The frontend expects the backend at `http://localhost:3001` through its local
-`/api` rewrite. This is a local development architecture; do not expose a
-filesystem-scanning API to untrusted remote users.
+The packaged server does not mount the legacy parser endpoints. See
+[ADR-0002](docs/adr/0002-change-review-cli.md) for the new boundaries and
+[CLI documentation](packages/cli/README.md) for limits and usage.
 
-## Prerequisites
-
-- Node.js 22 (see `.nvmrc`)
-- pnpm 10.20.0 (declared in `package.json`)
-
-## Quick start
+## Validation and packaging
 
 ```bash
-corepack enable
-pnpm install --frozen-lockfile
-cp apps/backend/.env.example apps/backend/.env
-pnpm --filter backend dev
+pnpm lint
+pnpm format:check
+pnpm test
+pnpm --filter backend test:cov --runInBand
+pnpm --filter @codemap/frontend benchmark
+pnpm build
+pnpm --filter @codemap/cli exec playwright install chromium
+pnpm --filter @codemap/cli pack --pack-destination packages/cli
+pnpm --filter @codemap/cli test:packed codemap-cli-0.1.0.tgz --browser
 ```
 
-In a second terminal:
+The smoke test installs the tarball in a temporary project, checks authenticated
+API/static assets and refresh, and verifies SIGINT/SIGTERM shutdown on Unix
+(forced process termination on Windows). It may download runtime dependencies
+from npm. `--browser` runs Chromium against that installed CLI: scope, diffs,
+refresh, search, pointer/keyboard controls, resize, changing pixel density, and
+the 1,000-node/3,000-edge canvas. The same package/browser checks are configured
+for Linux, macOS and Windows in CI.
 
-```bash
-pnpm --filter @codemap/frontend dev
-```
+Browser regression budgets are mean frame interval <34 ms and p95 <60 ms on the
+headless fixture; timings vary by machine and are not a universal 60 FPS claim.
+The separate worker benchmark measures physics, message rate, quadtree lookup
+and main-process heap usage. Browser heap figures exclude worker memory.
 
-Open `http://localhost:3000`. Configure `PORT=3001` in
-`apps/backend/.env` so it matches the frontend proxy. Set `WORKSPACE_ROOT` to
-the absolute directory the backend is allowed to scan.
+## Analysis limits
 
-## Common commands
-
-```bash
-pnpm dev           # start workspace development scripts
-pnpm lint          # run ESLint checks
-pnpm format:check  # run Prettier checks in every package
-pnpm test          # run test suites
-pnpm test:cov      # run coverage where configured
-pnpm build         # build every package
-```
-
-Use `pnpm --filter backend test` and
-`pnpm --filter @codemap/frontend dev` for package-specific commands.
-
-## Threat model
-
-The highest-risk boundary is repository ingestion. CodeMap must treat the target
-repository and its contents as untrusted input.
-
-- Restrict scanning to an explicit allowed workspace root.
-- Resolve real filesystem paths and reject traversal and symlink escapes.
-- Ignore generated/vendor directories and enforce extension, file-size, file-
-  count, depth, and time limits.
-- Never expose filesystem paths or scanning endpoints to unauthenticated remote
-  clients.
-- Treat source code as untrusted context in AI prompts; minimize context,
-  prevent prompt-instruction override, and require explicit consent before
-  sending code to an external provider.
+Import connections describe structure, not demonstrated runtime behavior.
+Unsupported files, unresolved dependencies, symlinks and oversized files are
+reported. Renames initially appear as deletion plus addition. Current-file reads
+are rechecked individually; the entire repository is not captured atomically
+while other processes are editing it. Review source ingestion as an untrusted
+input boundary; keep the server local.
 
 See [SECURITY.md](SECURITY.md) for reporting guidance and
-[docs/adr](docs/adr/README.md) for architectural decisions.
-
-## Contributing
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Code is
-released under the [MIT License](LICENSE).
+[CONTRIBUTING.md](CONTRIBUTING.md) for contributions. Code is released under the
+[MIT License](LICENSE).

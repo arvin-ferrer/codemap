@@ -1,5 +1,13 @@
 # Product Requirements Document (PRD): CodeMap (CodeGraph)
 
+## Current release scope — September 28, 2026
+
+The approved first release is **scope and structural change review through an npm CLI**, as defined in [ADR-0002](adr/0002-change-review-cli.md) and the [release roadmap](roadmap.md). A developer starts a review from a Git root, declares expected files or folders, and inspects unexpected file changes, added/removed imports, new cyclic groups, and captured text diffs in a local browser.
+
+The baseline is the unique common ancestor of the selected local revision and HEAD. The comparison includes branch commits and final local file contents (staged, unstaged, and non-ignored untracked files). Scope exceptions require a declared scope; an unset scope must not imply approval. Results disclose incomplete analysis and distinguish structural connections from demonstrated execution.
+
+Initial dependency extraction supports JavaScript and TypeScript. The review is read-only, needs no AI credentials, and does not upload source. Editor integration, test evidence, saved review decisions, directory collapsing, animated execution flows, and Gemini RAG are later increments. The original exploration/RAG vision below remains background and future scope; it does not define first-release acceptance.
+
 ## 1. Executive Summary & Vision
 
 **CodeMap (CodeGraph)** is an interactive, visual codebase mapping tool designed to streamline developer onboarding, facilitate architectural analysis, and enable contextual codebase querying. It represents a software repository as an interactive, directed graph where nodes represent files and directories, and edges denote dependencies and imports.

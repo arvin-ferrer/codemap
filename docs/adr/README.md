@@ -9,3 +9,6 @@ Copy [`0000-template.md`](0000-template.md), assign the next sequential number,
 and use a short, descriptive filename such as `0001-local-agent-boundary.md`.
 ADRs are immutable after acceptance; supersede a decision with a new ADR rather
 than rewriting history.
+
+- [0001: Deployment model](0001-deployment-model.md)
+- [0002: Scope and structural change review](0002-change-review-cli.md)

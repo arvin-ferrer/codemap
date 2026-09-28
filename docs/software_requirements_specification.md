@@ -4,6 +4,17 @@
 **Date:** June 25, 2026  
 **Role:** System Architect  
 
+## Current release requirements — September 28, 2026
+
+[ADR-0002](adr/0002-change-review-cli.md) supersedes the initial implementation sequence below for the approved CLI-first change-review release. Historical Milestones 4–5 (BFS/context pruning and Gemini query) are deferred and are not implemented by this release.
+
+- **Entry point:** `codemap review --base <local-ref>` from the Git root, with repeatable `--scope` and optional `--no-open`. Compare one merge base to final working-tree contents without checkout, staging, fetching, hooks, or source execution. Reject missing/unborn/disconnected/ambiguous/conflicted histories with actionable errors.
+- **Core:** `packages/core` contains editor- and Nest-independent snapshot/AST analysis. The backend coordinates workers and session APIs; `packages/shared` owns review/diff contracts. Resolve relative imports, captured tsconfig aliases and supported local package exports independently in each snapshot. Disclose unresolved imports and unsupported content; renames appear as deletion plus addition.
+- **Session:** One server binds to `127.0.0.1` on an OS-assigned port and serves static Next.js assets. A random per-session token protects `/api/review`, `/api/review/refresh`, and `/api/review/diff`. Validate Host/Origin; captured diff access requires a current snapshot ID and known file path. No arbitrary filesystem-read endpoint is mounted.
+- **Budgets:** Asynchronous `lstat`/`realpath` containment and opened-file rechecks; 1 MiB per file, depth 30, 500 MiB and 50,000 admitted files across both snapshots, and a 60-second worker deadline. Failed refresh must retain the prior snapshot. Captures detect per-file changes but are not atomic across concurrently edited repositories.
+- **Browser:** Explicit file/folder scope, scope exceptions, graph deltas and cyclic groups, accessible file selection and captured text diffs. Refresh preserves scope. Physics coordinates stay outside React state and are rendered through refs/RAF. Import graphs do not assert runtime execution or test coverage.
+- **Release verification:** Git/path/config fixtures, API authentication and invalidation tests, component/canvas tests, backend line coverage above 80%, deterministic 1,000-node/3,000-edge parser/worker regression fixtures, and a clean packed-CLI install. Real-browser worker loading, navigation, resize/DPR and rendering performance must be checked before publication; CPU benchmark timings are not browser FPS.
+
 ---
 
 ## 1. Introduction
