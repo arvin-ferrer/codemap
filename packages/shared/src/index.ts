@@ -16,7 +16,11 @@ export type NodeType =
   | "unknown"
   | string;
 // Because we might scan other things, string is needed, but we can do a strict union.
-export type LinkRelation = "static-import" | "dynamic-require" | "type-import";
+export type LinkRelation =
+  | "static-import"
+  | "dynamic-require"
+  | "dynamic-import"
+  | "type-import";
 
 export interface CodeNode {
   id: string; // Relative file path (unique identifier)
@@ -35,6 +39,45 @@ export interface CodeLink {
 export interface GraphDataResponse {
   nodes: CodeNode[];
   links: CodeLink[];
+}
+
+export type ChangeStatus = "added" | "modified" | "deleted" | "unverified";
+export interface ChangedFile {
+  path: string;
+  status: ChangeStatus;
+  inspectable: boolean;
+}
+export interface ReviewIssue {
+  path: string;
+  message: string;
+  snapshot: "baseline" | "current";
+}
+export interface ReviewData {
+  id: string;
+  capturedAt: string;
+  baseRef: string;
+  baseCommit: string;
+  headCommit: string;
+  files: ChangedFile[];
+  graph: GraphDataResponse;
+  addedLinks: CodeLink[];
+  removedLinks: CodeLink[];
+  newCycles: string[][];
+  issues: ReviewIssue[];
+  initialScope: string[];
+}
+export interface ReviewDiff {
+  reviewId: string;
+  path: string;
+  before: string;
+  after: string;
+}
+
+/** A trailing slash denotes a folder; other entries match one file exactly. */
+export function isInScope(file: string, scope: string[]): boolean {
+  return scope.some((entry) =>
+    entry.endsWith("/") ? file.startsWith(entry) : file === entry,
+  );
 }
 
 export interface QueryPayload {
