@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "next dev -H 127.0.0.1 -p 3000",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -H 127.0.0.1",
     "lint": "eslint .",
     "test": "jest",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"*.{ts,json,md}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"*.{ts,json,md}\""
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"*.{ts,json,md}\" \"scripts/**/*.{ts,mjs}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"*.{ts,json,md}\" \"scripts/**/*.{ts,mjs}\"",
+    "benchmark": "node scripts/benchmark-worker.mjs"
   },
   "dependencies": {
     "@codemap/shared": "workspace:*",

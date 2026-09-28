@@ -1,5 +1,6 @@
 "use client";
 
+import type { GraphDataResponse, ReviewData } from "@codemap/shared";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import styles from "./GraphVisualizer.module.css";
 import SidePanel from "./SidePanel";
@@ -9,16 +10,41 @@ import { useGraphState } from "./graph/useGraphState";
 import { useCameraController } from "./graph/useCameraController";
 import { drawFrame } from "./graph/canvasRenderer";
 
-export default function GraphVisualizer() {
+interface Props {
+  graph?: GraphDataResponse;
+  review?: ReviewData;
+  selectedId?: string | null;
+  onSelect?: (id: string | null) => void;
+}
+export default function GraphVisualizer({
+  graph,
+  review,
+  selectedId,
+  onSelect,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const logicalSizeRef = useRef({ width: 0, height: 0 });
   const animFrameRef = useRef<number>(0);
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-  const { tickDataRef, quadtreeRef, isLoading, error, postWorkerMessage } =
-    useGraphState();
+  const {
+    metadata,
+    tickDataRef,
+    quadtreeRef,
+    isLoading,
+    error,
+    postWorkerMessage,
+  } = useGraphState(graph);
+  const select = useCallback(
+    (id: string | null) => {
+      setSelectedNodeId(id);
+      onSelect?.(id);
+    },
+    [onSelect],
+  );
 
   const {
     offsetXRef,
@@ -35,7 +61,7 @@ export default function GraphVisualizer() {
     quadtreeRef,
     tickDataRef,
     postWorkerMessage,
-    setSelectedNodeId,
+    setSelectedNodeId: select,
   });
 
   const renderLoop = useCallback(
@@ -47,9 +73,17 @@ export default function GraphVisualizer() {
       if (!ctx) return;
 
       const dpr = window.devicePixelRatio || 1;
+      // Moving between monitors or browser zoom can change DPR without a resize.
+      const pixelWidth = Math.round(logicalSizeRef.current.width * dpr);
+      const pixelHeight = Math.round(logicalSizeRef.current.height * dpr);
+      if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
+      if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
       const { nodes, links } = tickDataRef.current;
 
-      const activeNodeId = draggedNodeIdRef.current || hoveredNodeIdRef.current;
+      const activeNodeId =
+        draggedNodeIdRef.current ||
+        hoveredNodeIdRef.current ||
+        (selectedId !== undefined ? selectedId : selectedNodeId);
       drawFrame(
         ctx,
         nodes,
@@ -61,12 +95,16 @@ export default function GraphVisualizer() {
         offsetYRef.current,
         dpr,
         activeNodeId,
+        review,
       );
 
       animFrameRef.current = requestAnimationFrame(renderLoop);
     },
     [
       tickDataRef,
+      selectedId,
+      selectedNodeId,
+      review,
       scaleRef,
       offsetXRef,
       offsetYRef,
@@ -86,6 +124,7 @@ export default function GraphVisualizer() {
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
+        logicalSizeRef.current = { width, height };
         setDimensions({ width, height });
 
         const dpr = window.devicePixelRatio || 1;
@@ -141,19 +180,22 @@ export default function GraphVisualizer() {
       default:
         return;
     }
+    e.preventDefault();
   };
 
   return (
     <div className={styles.container} ref={containerRef}>
       {isLoading && <div className={styles.overlay}>Loading graph…</div>}
       {error && <div className={styles.overlay}>Error: {error}</div>}
-      <SidePanel
-        nodeId={selectedNodeId}
-        nodes={tickDataRef.current.nodes}
-        links={tickDataRef.current.links}
-        onClose={() => setSelectedNodeId(null)}
-      />
-      <SearchBar nodes={tickDataRef.current.nodes} onSelectNode={panToNode} />
+      {!review && (
+        <SidePanel
+          nodeId={selectedNodeId}
+          nodes={tickDataRef.current.nodes}
+          links={tickDataRef.current.links}
+          onClose={() => setSelectedNodeId(null)}
+        />
+      )}
+      <SearchBar nodes={metadata.nodes} onSelectNode={panToNode} />
       <canvas
         ref={canvasRef}
         className={styles.canvas}

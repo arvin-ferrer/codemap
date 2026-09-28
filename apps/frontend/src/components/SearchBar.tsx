@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import styles from "./SearchBar.module.css";
-import { TickNode } from "./graph/canvasRenderer";
+import type { CodeNode } from "@codemap/shared";
 
 interface SearchBarProps {
-  nodes: TickNode[];
+  nodes: CodeNode[];
   onSelectNode: (nodeId: string) => void;
 }
 

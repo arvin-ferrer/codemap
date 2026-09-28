@@ -1,33 +1,23 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import SearchBar from "./SearchBar";
-import { TickNode } from "./graph/canvasRenderer";
+import type { CodeNode } from "@codemap/shared";
 
 describe("SearchBar Component", () => {
-  const mockNodes: TickNode[] = [
+  const mockNodes: CodeNode[] = [
     {
       id: "src/index.ts",
       name: "index.ts",
-      x: 0,
-      y: 0,
-      vx: 0,
-      vy: 0,
-      type: "file",
+      type: "ts",
+      lines: 1,
       size: 100,
-      language: "ts",
-      path: "src/index.ts",
     },
     {
       id: "src/components/Button.tsx",
       name: "Button.tsx",
-      x: 0,
-      y: 0,
-      vx: 0,
-      vy: 0,
-      type: "file",
+      type: "ts",
+      lines: 1,
       size: 200,
-      language: "tsx",
-      path: "src/components/Button.tsx",
     },
   ];
 

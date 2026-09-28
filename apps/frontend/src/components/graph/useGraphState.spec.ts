@@ -38,7 +38,10 @@ describe("useGraphState Hook", () => {
     const { result } = renderHook(() => useGraphState());
 
     expect(result.current.isLoading).toBe(true);
-    expect(global.fetch).toHaveBeenCalledWith("/api/graph");
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/graph",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
 
     await waitFor(() => {
       expect(postMessageMock).toHaveBeenCalledWith(
@@ -80,5 +83,39 @@ describe("useGraphState Hook", () => {
       expect(result.current.tickDataRef.current.nodes[0].x).toBe(100);
       expect(result.current.tickDataRef.current.nodes[0].y).toBe(200);
     });
+  });
+
+  it("publishes metadata before ticks and avoids React renders on coordinate updates", () => {
+    const graph = {
+      nodes: [{ id: "a.ts", name: "a.ts", type: "ts", size: 1, lines: 1 }],
+      links: [],
+    };
+    let renders = 0;
+    const { result, unmount } = renderHook(() => {
+      renders++;
+      return useGraphState(graph);
+    });
+    expect(result.current.metadata.nodes).toEqual(graph.nodes);
+    expect(global.fetch).not.toHaveBeenCalled();
+    const before = renders;
+    act(() => {
+      mockWorker.onmessage?.({
+        data: { type: "TICK", positions: new Float32Array([4, 5]) },
+      } as MessageEvent);
+    });
+    expect(renders).toBe(before);
+    expect(result.current.tickDataRef.current.nodes[0].x).toBe(4);
+    unmount();
+    expect(terminateMock).toHaveBeenCalled();
+  });
+
+  it("reports worker failure instead of loading forever", () => {
+    const graph = { nodes: [], links: [] };
+    const { result } = renderHook(() => useGraphState(graph));
+    act(() => {
+      mockWorker.onerror?.({} as ErrorEvent);
+    });
+    expect(result.current.error).toContain("layout failed");
+    expect(result.current.isLoading).toBe(false);
   });
 });

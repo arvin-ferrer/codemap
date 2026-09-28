@@ -1,4 +1,4 @@
-import { CodeNode, CodeLink } from "@codemap/shared";
+import { CodeNode, CodeLink, ReviewData } from "@codemap/shared";
 
 export interface TickNode extends CodeNode {
   x: number;
@@ -26,6 +26,13 @@ const EXTENSION_COLORS: Record<string, string> = {
 };
 
 const DEFAULT_NODE_COLOR = "#8b949e";
+const edgeKey = (link: CodeLink) =>
+  `${link.source}\0${link.target}\0${link.relation}`;
+const edgeChanges = new WeakMap<
+  ReviewData,
+  { added: Set<string>; removed: Set<string> }
+>();
+const edgeLayers = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
 
 function getNodeColor(fileType: string): string {
   return EXTENSION_COLORS[fileType] ?? DEFAULT_NODE_COLOR;
@@ -52,6 +59,7 @@ export function drawFrame(
   offsetY: number,
   dpr: number,
   activeNodeId: string | null,
+  review?: ReviewData,
 ): void {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -73,15 +81,82 @@ export function drawFrame(
     }
   }
 
-  drawLinks(ctx, links, activeNodeId);
-  drawNodes(ctx, nodes, activeNodeId, connectedNodeIds);
+  const left = -offsetX / scale;
+  const top = -offsetY / scale;
+  const right = (canvasWidth / dpr - offsetX) / scale;
+  const bottom = (canvasHeight / dpr - offsetY) / scale;
+  // Keep crossing edges and labels near the viewport, skip fully offscreen work.
+  const visibleLinks = links.filter(
+    (link) =>
+      Math.max(link.sourceX, link.targetX) >= left &&
+      Math.min(link.sourceX, link.targetX) <= right &&
+      Math.max(link.sourceY, link.targetY) >= top &&
+      Math.min(link.sourceY, link.targetY) <= bottom,
+  );
+  const visibleNodes = nodes.filter(
+    (node) =>
+      node.x >= left - 120 &&
+      node.x <= right + 120 &&
+      node.y >= top - 32 &&
+      node.y <= bottom + 32,
+  );
+  // Thin graph edges need one sample per CSS pixel. Keep text/nodes at native DPR
+  // while avoiding quadratic raster work for thousands of overlapping edges.
+  if (dpr > 1 && visibleLinks.length > 500 && ctx.canvas?.ownerDocument) {
+    let layer = edgeLayers.get(ctx);
+    if (!layer) {
+      layer = ctx.canvas.ownerDocument.createElement("canvas");
+      edgeLayers.set(ctx, layer);
+    }
+    const width = Math.ceil(canvasWidth / dpr);
+    const height = Math.ceil(canvasHeight / dpr);
+    if (layer.width !== width) layer.width = width;
+    if (layer.height !== height) layer.height = height;
+    const edgeContext = layer.getContext("2d");
+    if (edgeContext) {
+      edgeContext.setTransform(1, 0, 0, 1, 0, 0);
+      edgeContext.clearRect(0, 0, width, height);
+      edgeContext.setTransform(scale, 0, 0, scale, offsetX, offsetY);
+      drawLinks(edgeContext, visibleLinks, activeNodeId, review);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(layer, 0, 0, canvasWidth, canvasHeight);
+      ctx.setTransform(
+        scale * dpr,
+        0,
+        0,
+        scale * dpr,
+        offsetX * dpr,
+        offsetY * dpr,
+      );
+    } else drawLinks(ctx, visibleLinks, activeNodeId, review);
+  } else drawLinks(ctx, visibleLinks, activeNodeId, review);
+  drawNodes(ctx, visibleNodes, activeNodeId, connectedNodeIds);
 }
 
 function drawLinks(
   ctx: CanvasRenderingContext2D,
   links: TickLink[],
   activeNodeId: string | null,
+  review?: ReviewData,
 ): void {
+  let changes = review && edgeChanges.get(review);
+  if (review && !changes) {
+    changes = {
+      added: new Set(review.addedLinks.map(edgeKey)),
+      removed: new Set(review.removedLinks.map(edgeKey)),
+    };
+    edgeChanges.set(review, changes);
+  }
+  const groups = new Map<
+    string,
+    {
+      links: TickLink[];
+      color: string;
+      width: number;
+      removed: boolean;
+      label: string;
+    }
+  >();
   for (const link of links) {
     const isConnectedToActive =
       activeNodeId &&
@@ -89,14 +164,54 @@ function drawLinks(
     const opacity = activeNodeId ? (isConnectedToActive ? 0.8 : 0.05) : 0.2;
     const lineWidth = activeNodeId ? (isConnectedToActive ? 2 : 0.8) : 0.8;
 
-    ctx.strokeStyle = `rgba(139, 148, 158, ${opacity})`;
-    ctx.lineWidth = lineWidth / 1.5;
-
-    ctx.beginPath();
-    ctx.moveTo(link.sourceX, link.sourceY);
-    ctx.lineTo(link.targetX, link.targetY);
-    ctx.stroke();
+    const key = edgeKey(link);
+    const isAdded = changes?.added.has(key);
+    const isRemoved = changes?.removed.has(key) ?? false;
+    const color = isAdded
+      ? "#80d0b0"
+      : isRemoved
+        ? "#f5b76d"
+        : `rgba(139, 148, 158, ${opacity})`;
+    const groupKey = `${color}:${lineWidth}:${isRemoved}`;
+    let group = groups.get(groupKey);
+    if (!group) {
+      group = {
+        links: [],
+        color,
+        width: lineWidth / 1.5,
+        removed: isRemoved,
+        label: isAdded ? "+" : isRemoved ? "−" : "",
+      };
+      groups.set(groupKey, group);
+    }
+    group.links.push(link);
   }
+  // Bound path complexity: very large overlapping paths rasterize poorly at high DPR.
+  for (const group of groups.values()) {
+    ctx.setLineDash(group.removed ? [5, 4] : []);
+    ctx.strokeStyle = group.color;
+    ctx.lineWidth = group.width;
+    for (let start = 0; start < group.links.length; start += 16) {
+      ctx.beginPath();
+      for (const link of group.links.slice(start, start + 16)) {
+        ctx.moveTo(link.sourceX, link.sourceY);
+        ctx.lineTo(link.targetX, link.targetY);
+      }
+      ctx.stroke();
+    }
+    if (group.label) {
+      ctx.fillStyle = group.color;
+      ctx.font = "12px monospace";
+      ctx.textAlign = "center";
+      for (const link of group.links)
+        ctx.fillText(
+          group.label,
+          (link.sourceX + link.targetX) / 2,
+          (link.sourceY + link.targetY) / 2,
+        );
+    }
+  }
+  ctx.setLineDash([]);
 }
 
 function drawNodes(

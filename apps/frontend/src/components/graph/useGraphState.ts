@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { quadtree, Quadtree } from "d3-quadtree";
 import {
+  GraphDataResponse,
   CodeNode,
   CodeLink,
   WorkerMessageInbound,
@@ -8,8 +9,13 @@ import {
 } from "@codemap/shared";
 import { TickNode, TickLink } from "./canvasRenderer";
 
-export function useGraphState() {
+export function useGraphState(graph?: GraphDataResponse) {
+  const [metadata, setMetadata] = useState<GraphDataResponse>({
+    nodes: [],
+    links: [],
+  });
   const workerRef = useRef<Worker | null>(null);
+  const dimensionsRef = useRef<WorkerMessageInbound | null>(null);
 
   const baseNodesRef = useRef<CodeNode[]>([]);
   const baseLinksRef = useRef<CodeLink[]>([]);
@@ -30,6 +36,14 @@ export function useGraphState() {
     );
     workerRef.current = worker;
 
+    worker.onerror = () => {
+      setError("Graph layout failed. Refresh to retry.");
+      setIsLoading(false);
+    };
+    worker.onmessageerror = () => {
+      setError("Graph layout returned an invalid message.");
+      setIsLoading(false);
+    };
     worker.onmessage = (event: MessageEvent<WorkerMessageOutbound>) => {
       const msg = event.data;
       if (msg.type === "INIT_DONE") {
@@ -38,6 +52,7 @@ export function useGraphState() {
         const positions = msg.positions;
         const currentNodes = baseNodesRef.current;
         const currentLinks = baseLinksRef.current;
+        if (positions.length !== currentNodes.length * 2) return;
 
         const nextNodes: TickNode[] = new Array(currentNodes.length);
         for (let i = 0; i < currentNodes.length; i++) {
@@ -70,35 +85,59 @@ export function useGraphState() {
       }
     };
 
-    fetch("/api/graph")
-      .then((res) => {
-        if (!res.ok) throw new Error(`API responded with ${res.status}`);
-        return res.json();
-      })
-      .then((data: { nodes: CodeNode[]; links: CodeLink[] }) => {
-        baseNodesRef.current = data.nodes;
-        baseLinksRef.current = data.links;
-        worker.postMessage({
-          type: "INIT",
-          nodes: data.nodes,
-          links: data.links,
-        } as WorkerMessageInbound);
-      })
-      .catch((err) => {
-        setError(
-          err instanceof Error ? err.message : "Failed to fetch graph data",
-        );
-        setIsLoading(false);
-      });
-
-    return () => {
-      worker.terminate();
+    const controller = new AbortController();
+    const initialize = (data: GraphDataResponse) => {
+      if (controller.signal.aborted) return;
+      baseNodesRef.current = data.nodes;
+      baseLinksRef.current = data.links;
+      setMetadata(data);
+      setError(null);
+      tickDataRef.current = {
+        nodes: data.nodes.map((n) => ({ ...n, x: 0, y: 0 })),
+        links: [],
+      };
+      quadtreeRef.current = null;
+      worker.postMessage({
+        type: "INIT",
+        nodes: data.nodes,
+        links: data.links,
+      } as WorkerMessageInbound);
+      if (dimensionsRef.current) worker.postMessage(dimensionsRef.current);
     };
-  }, []);
+    if (graph) initialize(graph);
+    else
+      fetch("/api/graph", { signal: controller.signal })
+        .then((res) => {
+          if (!res.ok) throw new Error(`API responded with ${res.status}`);
+          return res.json();
+        })
+        .then(initialize)
+        .catch((err) => {
+          if (!controller.signal.aborted) {
+            setError(
+              err instanceof Error ? err.message : "Failed to fetch graph data",
+            );
+            setIsLoading(false);
+          }
+        });
+    return () => {
+      controller.abort();
+      worker.terminate();
+      workerRef.current = null;
+    };
+  }, [graph]);
 
   const postWorkerMessage = useCallback((msg: WorkerMessageInbound) => {
+    if (msg.type === "UPDATE_DIMENSIONS") dimensionsRef.current = msg;
     workerRef.current?.postMessage(msg);
   }, []);
 
-  return { tickDataRef, quadtreeRef, isLoading, error, postWorkerMessage };
+  return {
+    metadata,
+    tickDataRef,
+    quadtreeRef,
+    isLoading,
+    error,
+    postWorkerMessage,
+  };
 }
