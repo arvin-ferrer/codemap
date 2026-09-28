@@ -1,0 +1,43 @@
+{
+  "name": "@codemap/cli",
+  "version": "0.1.0",
+  "description": "Local scope and dependency review for code changes",
+  "license": "MIT",
+  "bin": {
+    "codemap": "bin/codemap.cjs"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "public",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "node build.cjs",
+    "lint": "node --check bin/codemap.cjs && node --check build.cjs",
+    "test": "node --test test/*.test.cjs",
+    "test:browser": "playwright test",
+    "test:packed": "node test/packed-smoke.cjs",
+    "format": "prettier --write bin *.cjs test *.json *.md",
+    "format:check": "prettier --check bin *.cjs test *.json *.md"
+  },
+  "dependencies": {
+    "@nestjs/common": "11.1.27",
+    "@nestjs/core": "11.1.27",
+    "@nestjs/platform-express": "11.1.27",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "typescript": "5.9.3"
+  },
+  "devDependencies": {
+    "@codemap/core": "workspace:*",
+    "@codemap/frontend": "workspace:*",
+    "@codemap/shared": "workspace:*",
+    "@playwright/test": "^1.63.0",
+    "backend": "workspace:*",
+    "prettier": "^3.8.4"
+  }
+}
