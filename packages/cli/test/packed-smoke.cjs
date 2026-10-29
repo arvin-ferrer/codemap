@@ -74,6 +74,7 @@ async function smoke() {
           20000,
         );
         let stdout = "";
+        let stderr = "";
         child.stdout.on("data", (buffer) => {
           stdout += buffer.toString();
           const match = stdout.match(
@@ -84,10 +85,12 @@ async function smoke() {
             resolve(new URL(match[0]));
           }
         });
-        child.stderr.resume();
+        child.stderr.on("data", (buffer) => (stderr += buffer.toString()));
         child.once("exit", (code) => {
           clearTimeout(timer);
-          reject(new Error("CLI exited during startup: " + code));
+          reject(
+            new Error("CLI exited during startup: " + code + "\n" + stderr),
+          );
         });
         child.once("error", (error) => {
           clearTimeout(timer);

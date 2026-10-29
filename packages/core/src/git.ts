@@ -59,7 +59,8 @@ export async function git(
       } else chunks.push(chunk);
     });
     // Drain stderr, but never echo repository-controlled output or absolute paths.
-    child.stderr.resume();
+    let debugErr = "";
+    child.stderr.on("data", (c: Buffer) => (debugErr += c.toString()));
     child.on("error", () => {
       children.delete(child);
       clearTimeout(timer);
@@ -70,7 +71,7 @@ export async function git(
       clearTimeout(timer);
       if (failure) reject(failure);
       else if (code !== 0)
-        reject(new Error("Git could not read this repository or revision."));
+        reject(new Error("Git could not read this repository or revision. DEBUG " + JSON.stringify(args) + " " + debugErr));
       else resolve(Buffer.concat(chunks));
     });
   });
